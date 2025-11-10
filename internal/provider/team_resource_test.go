@@ -14,7 +14,7 @@ func TestAccTeamResource(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create and Read testing with permissions block
+			// Create and Read testing with permission and units attributes
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
@@ -24,10 +24,8 @@ resource "forgejo_organization" "test" {
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "developers"
-	permissions {
-		level = "write"
-		units = ["repo.code", "repo.issues"]
-	}
+	permission   = "write"
+	units        = ["repo.code", "repo.issues"]
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -36,7 +34,7 @@ resource "forgejo_team" "test" {
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("name"), knownvalue.StringExact("developers")),
 				},
 			},
-			// Update and Read testing - change permissions level
+			// Update and Read testing - change permission level
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
@@ -49,10 +47,8 @@ resource "forgejo_team" "test" {
 	description               = "Development team"
 	can_create_org_repo       = true
 	includes_all_repositories = true
-	permissions {
-		level = "admin"
-		units = ["repo.code", "repo.issues", "repo.pulls"]
-	}
+	permission                = "admin"
+	units                     = ["repo.code", "repo.issues", "repo.pulls"]
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -77,10 +73,8 @@ resource "forgejo_team" "test" {
 	description               = "Development team"
 	can_create_org_repo       = true
 	includes_all_repositories = true
-	permissions {
-		level = "admin"
-		units = ["repo.code", "repo.issues", "repo.pulls"]
-	}
+	permission                = "admin"
+	units                     = ["repo.code", "repo.issues", "repo.pulls"]
 }
 `,
 				PlanOnly:           true,
@@ -189,41 +183,41 @@ resource "forgejo_team" "test" {
 	})
 }
 
-func TestAccTeamResource_SwitchFromPermissionsToUnitsMap(t *testing.T) {
+func TestAccTeamResource_CombinePermissionWithUnitsMap(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create with permissions block
+			// Create with both permission and units
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
-	name = "tftest_team_switch1"
+	name = "tftest_team_combined1"
 }
 
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "developers"
-	permissions {
-		level = "write"
-		units = ["repo.code", "repo.issues"]
-	}
+	permission   = "write"
+	units        = ["repo.code", "repo.issues"]
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
 				},
 			},
-			// Switch to units_map (resource will be replaced due to mutually exclusive attrs)
+			// Update to also include units_map (now both can coexist)
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
-	name = "tftest_team_switch1"
+	name = "tftest_team_combined1"
 }
 
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "developers"
+	permission   = "write"
+	units        = ["repo.code", "repo.issues"]
 	units_map = {
 		"repo.code"   = "write"
 		"repo.issues" = "write"
@@ -238,50 +232,53 @@ resource "forgejo_team" "test" {
 	})
 }
 
-func TestAccTeamResource_SwitchFromUnitsMapToPermissions(t *testing.T) {
+func TestAccTeamResource_PermissionWithUnitsMapOnly(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create with units_map
+			// Create with permission and units_map, without units
+			// This tests that units can be omitted when using units_map
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
-	name = "tftest_team_switch2"
+	name = "tftest_team_nounits"
 }
 
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "developers"
+	permission   = "write"
 	units_map = {
-		"repo.code"   = "read"
+		"repo.code"   = "write"
 		"repo.issues" = "write"
 	}
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("permission"), knownvalue.StringExact("write")),
 				},
 			},
-			// Switch to permissions block (resource will be replaced due to mutually exclusive attrs)
+			// Re-plan to ensure no drift (key test for state consistency)
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
-	name = "tftest_team_switch2"
+	name = "tftest_team_nounits"
 }
 
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "developers"
-	permissions {
-		level = "write"
-		units = ["repo.code", "repo.issues"]
+	permission   = "write"
+	units_map = {
+		"repo.code"   = "write"
+		"repo.issues" = "write"
 	}
 }
 `,
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
-				},
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false, // Should not plan any changes
 			},
 		},
 	})
