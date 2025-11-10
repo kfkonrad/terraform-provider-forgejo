@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
@@ -36,10 +38,23 @@ type teamResourceModel struct {
 	Name                    types.String `tfsdk:"name"`
 	Description             types.String `tfsdk:"description"`
 	Permission              types.String `tfsdk:"permission"`
-	Units                   types.List   `tfsdk:"units"`
+	Access                  types.Object `tfsdk:"access"`
 	CanCreateOrgRepo        types.Bool   `tfsdk:"can_create_org_repo"`
 	IncludesAllRepositories types.Bool   `tfsdk:"includes_all_repositories"`
-	UnitsMap                types.Map    `tfsdk:"units_map"`
+}
+
+// accessModel represents the access block
+type accessModel struct {
+	Code      types.String `tfsdk:"code"`
+	Issues    types.String `tfsdk:"issues"`
+	Pulls     types.String `tfsdk:"pulls"`
+	ExtIssues types.String `tfsdk:"ext_issues"`
+	Wiki      types.String `tfsdk:"wiki"`
+	ExtWiki   types.String `tfsdk:"ext_wiki"`
+	Releases  types.String `tfsdk:"releases"`
+	Projects  types.String `tfsdk:"projects"`
+	Packages  types.String `tfsdk:"packages"`
+	Actions   types.String `tfsdk:"actions"`
 }
 
 func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
@@ -55,25 +70,106 @@ func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
 	m.CanCreateOrgRepo = types.BoolValue(t.CanCreateOrgRepo)
 	m.IncludesAllRepositories = types.BoolValue(t.IncludesAllRepositories)
 
-	// Convert Units list from API response
-	if len(t.Units) > 0 {
-		unitStrings := make([]string, len(t.Units))
-		for i, unit := range t.Units {
-			unitStrings[i] = string(unit)
+	// Convert UnitsMap from API response to access block
+	accessAttrTypes := accessAttrTypes()
+	if len(t.UnitsMap) > 0 {
+		access := accessModel{
+			Code:      types.StringValue(t.UnitsMap["repo.code"]),
+			Issues:    types.StringValue(t.UnitsMap["repo.issues"]),
+			Pulls:     types.StringValue(t.UnitsMap["repo.pulls"]),
+			ExtIssues: types.StringValue(t.UnitsMap["repo.ext_issues"]),
+			Wiki:      types.StringValue(t.UnitsMap["repo.wiki"]),
+			ExtWiki:   types.StringValue(t.UnitsMap["repo.ext_wiki"]),
+			Releases:  types.StringValue(t.UnitsMap["repo.releases"]),
+			Projects:  types.StringValue(t.UnitsMap["repo.projects"]),
+			Packages:  types.StringValue(t.UnitsMap["repo.packages"]),
+			Actions:   types.StringValue(t.UnitsMap["repo.actions"]),
 		}
-		unitsValue, _ := types.ListValueFrom(ctx, types.StringType, unitStrings)
-		m.Units = unitsValue
+		accessValue, _ := types.ObjectValueFrom(ctx, accessAttrTypes, access)
+		m.Access = accessValue
 	} else {
-		m.Units = types.ListNull(types.StringType)
+		m.Access = types.ObjectNull(accessAttrTypes)
+	}
+}
+
+// accessAttrTypes returns the attribute types for the accessModel
+func accessAttrTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"code":       types.StringType,
+		"issues":     types.StringType,
+		"pulls":      types.StringType,
+		"ext_issues": types.StringType,
+		"wiki":       types.StringType,
+		"ext_wiki":   types.StringType,
+		"releases":   types.StringType,
+		"projects":   types.StringType,
+		"packages":   types.StringType,
+		"actions":    types.StringType,
+	}
+}
+
+// buildUnitsMap converts the access block to a full units_map with all units explicitly set
+func (m *teamResourceModel) buildUnitsMap() map[string]string {
+	// Initialize all units to "none"
+	unitsMap := map[string]string{
+		"repo.code":       "none",
+		"repo.issues":     "none",
+		"repo.pulls":      "none",
+		"repo.ext_issues": "none",
+		"repo.wiki":       "none",
+		"repo.ext_wiki":   "none",
+		"repo.releases":   "none",
+		"repo.projects":   "none",
+		"repo.packages":   "none",
+		"repo.actions":    "none",
 	}
 
-	// Convert UnitsMap from API response
-	if len(t.UnitsMap) > 0 {
-		unitsMapValue, _ := types.MapValueFrom(ctx, types.StringType, t.UnitsMap)
-		m.UnitsMap = unitsMapValue
-	} else {
-		m.UnitsMap = types.MapNull(types.StringType)
+	// If access block is not set, return all "none"
+	if m.Access.IsNull() || m.Access.IsUnknown() {
+		return unitsMap
 	}
+
+	// Extract access block values
+	var access accessModel
+	d := m.Access.As(context.Background(), &access, basetypes.ObjectAsOptions{})
+	if d.HasError() {
+		// If we can't extract, return all "none"
+		return unitsMap
+	}
+
+	// Override with specified values
+	if !access.Code.IsNull() {
+		unitsMap["repo.code"] = access.Code.ValueString()
+	}
+	if !access.Issues.IsNull() {
+		unitsMap["repo.issues"] = access.Issues.ValueString()
+	}
+	if !access.Pulls.IsNull() {
+		unitsMap["repo.pulls"] = access.Pulls.ValueString()
+	}
+	if !access.ExtIssues.IsNull() {
+		unitsMap["repo.ext_issues"] = access.ExtIssues.ValueString()
+	}
+	if !access.Wiki.IsNull() {
+		unitsMap["repo.wiki"] = access.Wiki.ValueString()
+	}
+	if !access.ExtWiki.IsNull() {
+		unitsMap["repo.ext_wiki"] = access.ExtWiki.ValueString()
+	}
+	if !access.Releases.IsNull() {
+		unitsMap["repo.releases"] = access.Releases.ValueString()
+	}
+	if !access.Projects.IsNull() {
+		unitsMap["repo.projects"] = access.Projects.ValueString()
+	}
+	if !access.Packages.IsNull() {
+		unitsMap["repo.packages"] = access.Packages.ValueString()
+	}
+	if !access.Actions.IsNull() {
+		unitsMap["repo.actions"] = access.Actions.ValueString()
+	}
+
+	return unitsMap
 }
 
 func (m *teamResourceModel) to(o *forgejo.CreateTeamOption) {
@@ -89,21 +185,9 @@ func (m *teamResourceModel) to(o *forgejo.CreateTeamOption) {
 	// Set permission level (required)
 	o.Permission = forgejo.AccessMode(m.Permission.ValueString())
 
-	// Extract units list
-	if !m.Units.IsNull() && !m.Units.IsUnknown() {
-		var unitStrings []string
-		_ = m.Units.ElementsAs(context.Background(), &unitStrings, false)
-		for _, unit := range unitStrings {
-			o.Units = append(o.Units, forgejo.RepoUnitType(unit))
-		}
-	}
-
-	// Extract units_map
-	if !m.UnitsMap.IsNull() && !m.UnitsMap.IsUnknown() {
-		unitsMapValue := make(map[string]string)
-		_ = m.UnitsMap.ElementsAs(context.Background(), &unitsMapValue, false)
-		o.UnitsMap = unitsMapValue
-	}
+	// Convert access block to units_map
+	// Always build a full units_map with all units explicitly set
+	o.UnitsMap = m.buildUnitsMap()
 }
 
 func (m *teamResourceModel) toEdit(o *forgejo.EditTeamOption) {
@@ -122,21 +206,9 @@ func (m *teamResourceModel) toEdit(o *forgejo.EditTeamOption) {
 	// Set permission level (required)
 	o.Permission = forgejo.AccessMode(m.Permission.ValueString())
 
-	// Extract units list
-	if !m.Units.IsNull() && !m.Units.IsUnknown() {
-		var unitStrings []string
-		_ = m.Units.ElementsAs(context.Background(), &unitStrings, false)
-		for _, unit := range unitStrings {
-			o.Units = append(o.Units, forgejo.RepoUnitType(unit))
-		}
-	}
-
-	// Extract units_map
-	if !m.UnitsMap.IsNull() && !m.UnitsMap.IsUnknown() {
-		unitsMapValue := make(map[string]string)
-		_ = m.UnitsMap.ElementsAs(context.Background(), &unitsMapValue, false)
-		o.UnitsMap = unitsMapValue
-	}
+	// Convert access block to units_map
+	// Always build a full units_map with all units explicitly set
+	o.UnitsMap = m.buildUnitsMap()
 }
 
 // Metadata returns the resource type name.
@@ -189,26 +261,92 @@ func (r *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					),
 				},
 			},
-			"units": schema.ListAttribute{
-				Description: "Repository unit types the team has access to (e.g., 'repo.code', 'repo.issues', 'repo.pulls'). Can be omitted when using units_map.",
-				ElementType: types.StringType,
-				Optional:    true,
-			},
 			"can_create_org_repo": schema.BoolAttribute{
-				Description: "Whether the team can create repositories in the organization.",
-				Optional:    true,
+							Description: "Whether the team can create repositories in the organization.",
+							Optional:    true,
 			},
 			"includes_all_repositories": schema.BoolAttribute{
-				Description: "Whether the team has access to all repositories in the organization.",
-				Optional:    true,
-			},
-			"units_map": schema.MapAttribute{
-				Description: "A map of repository unit types to access modes for this team.",
-				ElementType: types.StringType,
-				Optional:    true,
-				Computed:    true,
+							Description: "Whether the team has access to all repositories in the organization.",
+							Optional:    true,
 			},
 		},
+	Blocks: map[string]schema.Block{
+		"access": schema.SingleNestedBlock{
+			Description: "Repository access levels for the team. Each key represents a repository unit, with values specifying the access level ('none', 'read', 'write', 'admin'). Omitted keys default to 'none'.",
+			Attributes: map[string]schema.Attribute{
+				"code": schema.StringAttribute{
+					Description: "Access level for code (repo.code).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"issues": schema.StringAttribute{
+					Description: "Access level for issues (repo.issues).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"pulls": schema.StringAttribute{
+					Description: "Access level for pull requests (repo.pulls).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"ext_issues": schema.StringAttribute{
+					Description: "Access level for external issues (repo.ext_issues).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"wiki": schema.StringAttribute{
+					Description: "Access level for wiki (repo.wiki).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"ext_wiki": schema.StringAttribute{
+					Description: "Access level for external wiki (repo.ext_wiki).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"releases": schema.StringAttribute{
+					Description: "Access level for releases (repo.releases).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"projects": schema.StringAttribute{
+					Description: "Access level for projects (repo.projects).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"packages": schema.StringAttribute{
+					Description: "Access level for packages (repo.packages).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+				"actions": schema.StringAttribute{
+					Description: "Access level for actions (repo.actions).",
+					Optional:    true,
+					Validators: []validator.String{
+						stringvalidator.OneOf("none", "read", "write", "admin"),
+					},
+				},
+			},
+		},
+	},
 	}
 }
 
@@ -235,7 +373,6 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 	r.client = client
 }
 
-
 // Create creates the resource and sets the initial Terraform state.
 func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	defer un(trace(ctx, "Create team resource"))
@@ -254,10 +391,9 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 		"name":                      data.Name.ValueString(),
 		"description":               data.Description.ValueString(),
 		"permission":                data.Permission.ValueString(),
-		"units":                     data.Units.String(),
+		"access":                    data.Access.String(),
 		"can_create_org_repo":       data.CanCreateOrgRepo.ValueBool(),
 		"includes_all_repositories": data.IncludesAllRepositories.ValueBool(),
-		"units_map":                 data.UnitsMap.String(),
 	})
 
 	// Generate API request body from plan
@@ -375,10 +511,9 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		"name":                      data.Name.ValueString(),
 		"description":               data.Description.ValueString(),
 		"permission":                data.Permission.ValueString(),
-		"units":                     data.Units.String(),
+		"access":                    data.Access.String(),
 		"can_create_org_repo":       data.CanCreateOrgRepo.ValueBool(),
 		"includes_all_repositories": data.IncludesAllRepositories.ValueBool(),
-		"units_map":                 data.UnitsMap.String(),
 	})
 
 	// Generate API request body from plan
