@@ -67,3 +67,5 @@ require (
 	google.golang.org/grpc v1.75.1 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 )
+
+replace codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2 => codeberg.org/kfkonrad/forgejo-sdk/forgejo/v2 v2.3.0-rc01

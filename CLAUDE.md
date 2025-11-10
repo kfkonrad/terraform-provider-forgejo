@@ -120,6 +120,22 @@ terraform-provider-forgejo/
   - `github.com/hashicorp/terraform-plugin-log` — Logging
 - Add dependencies with: `go get <module> && go mod tidy`
 
+### Forgejo SDK Location
+
+The Forgejo SDK source code is cached locally in the Go modules cache at:
+
+```
+~/go/pkg/mod/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2@v2.2.0/
+```
+
+Key SDK files for reference:
+- `org_team.go` — Team API types and methods (CreateTeamOption, EditTeamOption, Team, RepoUnitType, AccessMode)
+- `org.go` — Organization API types and methods
+- `repository.go` — Repository API types and methods
+- `user.go` — User API types and methods
+
+The current version is **v2.2.0**. Check `go.mod` in the repository root for the exact pinned version.
+
 ## Testing
 
 The provider uses two testing levels:
