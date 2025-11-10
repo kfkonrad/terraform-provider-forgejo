@@ -65,31 +65,29 @@ func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
 		m.Organization = types.StringNull()
 	}
 	m.Name = types.StringValue(t.Name)
-	m.Description = types.StringValue(t.Description)
-	m.Permission = types.StringValue(string(t.Permission))
-	m.CanCreateOrgRepo = types.BoolValue(t.CanCreateOrgRepo)
-	m.IncludesAllRepositories = types.BoolValue(t.IncludesAllRepositories)
 
-	// Convert UnitsMap from API response to access block
-	accessAttrTypes := accessAttrTypes()
-	if len(t.UnitsMap) > 0 {
-		access := accessModel{
-			Code:      types.StringValue(t.UnitsMap["repo.code"]),
-			Issues:    types.StringValue(t.UnitsMap["repo.issues"]),
-			Pulls:     types.StringValue(t.UnitsMap["repo.pulls"]),
-			ExtIssues: types.StringValue(t.UnitsMap["repo.ext_issues"]),
-			Wiki:      types.StringValue(t.UnitsMap["repo.wiki"]),
-			ExtWiki:   types.StringValue(t.UnitsMap["repo.ext_wiki"]),
-			Releases:  types.StringValue(t.UnitsMap["repo.releases"]),
-			Projects:  types.StringValue(t.UnitsMap["repo.projects"]),
-			Packages:  types.StringValue(t.UnitsMap["repo.packages"]),
-			Actions:   types.StringValue(t.UnitsMap["repo.actions"]),
-		}
-		accessValue, _ := types.ObjectValueFrom(ctx, accessAttrTypes, access)
-		m.Access = accessValue
-	} else {
-		m.Access = types.ObjectNull(accessAttrTypes)
+	// Only update optional fields if they are already set in the state
+	// This prevents state inconsistency when optional fields are omitted from config
+	if !m.Description.IsNull() {
+		m.Description = types.StringValue(t.Description)
 	}
+
+	// Note: The Forgejo API calculates the permission field as the minimum of all unit permissions
+	// in units_map. However, we preserve the permission value from the plan/config since it's a
+	// user-configured value, and the actual granular permissions are controlled by the access block
+	// (units_map). The returned permission from the API is merely informational.
+
+	if !m.CanCreateOrgRepo.IsNull() {
+		m.CanCreateOrgRepo = types.BoolValue(t.CanCreateOrgRepo)
+	}
+	if !m.IncludesAllRepositories.IsNull() {
+		m.IncludesAllRepositories = types.BoolValue(t.IncludesAllRepositories)
+	}
+
+	// Note: We do NOT read back the access block values from the API response.
+	// The Forgejo API may override unit permissions based on the permission field
+	// (e.g., if permission="admin", all units become "admin"). However, we want to preserve
+	// the user's explicit configuration, so we keep the access values from the plan/state.
 }
 
 // accessAttrTypes returns the attribute types for the accessModel
@@ -108,24 +106,19 @@ func accessAttrTypes() map[string]attr.Type {
 	}
 }
 
-// buildUnitsMap converts the access block to a full units_map with all units explicitly set
+// buildUnitsMap converts the access block to a units_map for the API
 func (m *teamResourceModel) buildUnitsMap() map[string]string {
-	// Initialize all units to "none"
-	unitsMap := map[string]string{
-		"repo.code":       "none",
-		"repo.issues":     "none",
-		"repo.pulls":      "none",
-		"repo.ext_issues": "none",
-		"repo.wiki":       "none",
-		"repo.ext_wiki":   "none",
-		"repo.releases":   "none",
-		"repo.projects":   "none",
-		"repo.packages":   "none",
-		"repo.actions":    "none",
-	}
+	permission := m.Permission.ValueString()
+	allUnits := []string{"repo.code", "repo.issues", "repo.pulls", "repo.ext_issues", "repo.wiki", "repo.ext_wiki", "repo.releases", "repo.projects", "repo.packages", "repo.actions"}
 
-	// If access block is not set, return all "none"
+	unitsMap := make(map[string]string)
+
+	// If access block is not set, set all units to the permission level
+	// This is required by the Forgejo API (either units or units_map must be specified)
 	if m.Access.IsNull() || m.Access.IsUnknown() {
+		for _, unit := range allUnits {
+			unitsMap[unit] = permission
+		}
 		return unitsMap
 	}
 
@@ -133,40 +126,63 @@ func (m *teamResourceModel) buildUnitsMap() map[string]string {
 	var access accessModel
 	d := m.Access.As(context.Background(), &access, basetypes.ObjectAsOptions{})
 	if d.HasError() {
-		// If we can't extract, return all "none"
+		// If we can't extract, default all units to permission level
+		for _, unit := range allUnits {
+			unitsMap[unit] = permission
+		}
 		return unitsMap
 	}
 
-	// Override with specified values
+	// Track which units were explicitly configured
+	configured := make(map[string]bool)
+
+	// Add units that were explicitly set
 	if !access.Code.IsNull() {
 		unitsMap["repo.code"] = access.Code.ValueString()
+		configured["repo.code"] = true
 	}
 	if !access.Issues.IsNull() {
 		unitsMap["repo.issues"] = access.Issues.ValueString()
+		configured["repo.issues"] = true
 	}
 	if !access.Pulls.IsNull() {
 		unitsMap["repo.pulls"] = access.Pulls.ValueString()
+		configured["repo.pulls"] = true
 	}
 	if !access.ExtIssues.IsNull() {
 		unitsMap["repo.ext_issues"] = access.ExtIssues.ValueString()
+		configured["repo.ext_issues"] = true
 	}
 	if !access.Wiki.IsNull() {
 		unitsMap["repo.wiki"] = access.Wiki.ValueString()
+		configured["repo.wiki"] = true
 	}
 	if !access.ExtWiki.IsNull() {
 		unitsMap["repo.ext_wiki"] = access.ExtWiki.ValueString()
+		configured["repo.ext_wiki"] = true
 	}
 	if !access.Releases.IsNull() {
 		unitsMap["repo.releases"] = access.Releases.ValueString()
+		configured["repo.releases"] = true
 	}
 	if !access.Projects.IsNull() {
 		unitsMap["repo.projects"] = access.Projects.ValueString()
+		configured["repo.projects"] = true
 	}
 	if !access.Packages.IsNull() {
 		unitsMap["repo.packages"] = access.Packages.ValueString()
+		configured["repo.packages"] = true
 	}
 	if !access.Actions.IsNull() {
 		unitsMap["repo.actions"] = access.Actions.ValueString()
+		configured["repo.actions"] = true
+	}
+
+	// For units not explicitly configured, use the permission level as fallback
+	for _, unit := range allUnits {
+		if !configured[unit] {
+			unitsMap[unit] = permission
+		}
 	}
 
 	return unitsMap
@@ -186,7 +202,9 @@ func (m *teamResourceModel) to(o *forgejo.CreateTeamOption) {
 	o.Permission = forgejo.AccessMode(m.Permission.ValueString())
 
 	// Convert access block to units_map
-	// Always build a full units_map with all units explicitly set
+	// The API's behavior: if units_map is set, permission gets overridden.
+	// To avoid this, we use units_map only when access block is explicitly set.
+	// When access block is not set, we rely on the permission field.
 	o.UnitsMap = m.buildUnitsMap()
 }
 
@@ -399,6 +417,11 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	// Generate API request body from plan
 	opts := forgejo.CreateTeamOption{}
 	data.to(&opts)
+
+	tflog.Info(ctx, "CreateTeamOption to send to API", map[string]any{
+		"permission": string(opts.Permission),
+		"unitsMap":   opts.UnitsMap,
+	})
 
 	// Use Forgejo client to create new team
 	team, res, err := r.client.CreateTeam(data.Organization.ValueString(), opts)
