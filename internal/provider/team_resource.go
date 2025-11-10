@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"google.golang.org/grpc/attributes"
 
 	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 )
@@ -107,17 +108,17 @@ func accessAttrTypes() map[string]attr.Type {
 }
 
 // buildUnitsMap converts the access block to a units_map for the API
+// Only explicitly set access values are included; omitted values are left to API defaults
 func (m *teamResourceModel) buildUnitsMap() map[string]string {
-	permission := m.Permission.ValueString()
-	allUnits := []string{"repo.code", "repo.issues", "repo.pulls", "repo.ext_issues", "repo.wiki", "repo.ext_wiki", "repo.releases", "repo.projects", "repo.packages", "repo.actions"}
-
 	unitsMap := make(map[string]string)
 
-	// If access block is not set, set all units to the permission level
-	// This is required by the Forgejo API (either units or units_map must be specified)
+	// If access block is not set but permission is set, send a minimal units_map
+	// The Forgejo SDK requires either units or units_map to be non-empty
 	if m.Access.IsNull() || m.Access.IsUnknown() {
-		for _, unit := range allUnits {
-			unitsMap[unit] = permission
+		if !m.Permission.IsNull() {
+			// Add a minimal entry to satisfy SDK validation
+			// The API will apply the permission level to all units
+			unitsMap["repo.code"] = m.Permission.ValueString()
 		}
 		return unitsMap
 	}
@@ -126,63 +127,40 @@ func (m *teamResourceModel) buildUnitsMap() map[string]string {
 	var access accessModel
 	d := m.Access.As(context.Background(), &access, basetypes.ObjectAsOptions{})
 	if d.HasError() {
-		// If we can't extract, default all units to permission level
-		for _, unit := range allUnits {
-			unitsMap[unit] = permission
-		}
+		// If we can't extract, return empty map (let API handle it)
 		return unitsMap
 	}
-
-	// Track which units were explicitly configured
-	configured := make(map[string]bool)
 
 	// Add units that were explicitly set
 	if !access.Code.IsNull() {
 		unitsMap["repo.code"] = access.Code.ValueString()
-		configured["repo.code"] = true
 	}
 	if !access.Issues.IsNull() {
 		unitsMap["repo.issues"] = access.Issues.ValueString()
-		configured["repo.issues"] = true
 	}
 	if !access.Pulls.IsNull() {
 		unitsMap["repo.pulls"] = access.Pulls.ValueString()
-		configured["repo.pulls"] = true
 	}
 	if !access.ExtIssues.IsNull() {
 		unitsMap["repo.ext_issues"] = access.ExtIssues.ValueString()
-		configured["repo.ext_issues"] = true
 	}
 	if !access.Wiki.IsNull() {
 		unitsMap["repo.wiki"] = access.Wiki.ValueString()
-		configured["repo.wiki"] = true
 	}
 	if !access.ExtWiki.IsNull() {
 		unitsMap["repo.ext_wiki"] = access.ExtWiki.ValueString()
-		configured["repo.ext_wiki"] = true
 	}
 	if !access.Releases.IsNull() {
 		unitsMap["repo.releases"] = access.Releases.ValueString()
-		configured["repo.releases"] = true
 	}
 	if !access.Projects.IsNull() {
 		unitsMap["repo.projects"] = access.Projects.ValueString()
-		configured["repo.projects"] = true
 	}
 	if !access.Packages.IsNull() {
 		unitsMap["repo.packages"] = access.Packages.ValueString()
-		configured["repo.packages"] = true
 	}
 	if !access.Actions.IsNull() {
 		unitsMap["repo.actions"] = access.Actions.ValueString()
-		configured["repo.actions"] = true
-	}
-
-	// For units not explicitly configured, use the permission level as fallback
-	for _, unit := range allUnits {
-		if !configured[unit] {
-			unitsMap[unit] = permission
-		}
 	}
 
 	return unitsMap
@@ -198,8 +176,10 @@ func (m *teamResourceModel) to(o *forgejo.CreateTeamOption) {
 	o.CanCreateOrgRepo = m.CanCreateOrgRepo.ValueBool()
 	o.IncludesAllRepositories = m.IncludesAllRepositories.ValueBool()
 
-	// Set permission level (required)
-	o.Permission = forgejo.AccessMode(m.Permission.ValueString())
+	// Set permission level only if specified (optional)
+	if !m.Permission.IsNull() {
+		o.Permission = forgejo.AccessMode(m.Permission.ValueString())
+	}
 
 	// Convert access block to units_map
 	// The API's behavior: if units_map is set, permission gets overridden.
@@ -221,8 +201,10 @@ func (m *teamResourceModel) toEdit(o *forgejo.EditTeamOption) {
 	includesAllRepositories := m.IncludesAllRepositories.ValueBool()
 	o.IncludesAllRepositories = &includesAllRepositories
 
-	// Set permission level (required)
-	o.Permission = forgejo.AccessMode(m.Permission.ValueString())
+	// Set permission level only if specified (optional)
+	if !m.Permission.IsNull() {
+		o.Permission = forgejo.AccessMode(m.Permission.ValueString())
+	}
 
 	// Convert access block to units_map
 	// Always build a full units_map with all units explicitly set
@@ -270,7 +252,7 @@ func (r *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"permission": schema.StringAttribute{
 				Description: "Permission level of the team. Possible values are 'read', 'write', or 'admin'.",
-				Required:    true,
+				Optional:    true,
 				Validators: []validator.String{
 					stringvalidator.OneOf(
 						"read",
@@ -280,91 +262,91 @@ func (r *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"can_create_org_repo": schema.BoolAttribute{
-							Description: "Whether the team can create repositories in the organization.",
-							Optional:    true,
+				Description: "Whether the team can create repositories in the organization.",
+				Optional:    true,
 			},
 			"includes_all_repositories": schema.BoolAttribute{
-							Description: "Whether the team has access to all repositories in the organization.",
-							Optional:    true,
+				Description: "Whether the team has access to all repositories in the organization.",
+				Optional:    true,
 			},
 		},
-	Blocks: map[string]schema.Block{
-		"access": schema.SingleNestedBlock{
-			Description: "Repository access levels for the team. Each key represents a repository unit, with values specifying the access level ('none', 'read', 'write', 'admin'). Omitted keys default to 'none'.",
-			Attributes: map[string]schema.Attribute{
-				"code": schema.StringAttribute{
-					Description: "Access level for code (repo.code).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+		Blocks: map[string]schema.Block{
+			"access": schema.SingleNestedBlock{
+				Description: "Repository access levels for the team. Each key represents a repository unit, with values specifying the access level ('none', 'read', 'write', 'admin'). Omitted keys default to 'none'.",
+				Attributes: map[string]schema.Attribute{
+					"code": schema.StringAttribute{
+						Description: "Access level for code (repo.code).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"issues": schema.StringAttribute{
-					Description: "Access level for issues (repo.issues).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"issues": schema.StringAttribute{
+						Description: "Access level for issues (repo.issues).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"pulls": schema.StringAttribute{
-					Description: "Access level for pull requests (repo.pulls).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"pulls": schema.StringAttribute{
+						Description: "Access level for pull requests (repo.pulls).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"ext_issues": schema.StringAttribute{
-					Description: "Access level for external issues (repo.ext_issues).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"ext_issues": schema.StringAttribute{
+						Description: "Access level for external issues (repo.ext_issues).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"wiki": schema.StringAttribute{
-					Description: "Access level for wiki (repo.wiki).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"wiki": schema.StringAttribute{
+						Description: "Access level for wiki (repo.wiki).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"ext_wiki": schema.StringAttribute{
-					Description: "Access level for external wiki (repo.ext_wiki).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"ext_wiki": schema.StringAttribute{
+						Description: "Access level for external wiki (repo.ext_wiki).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"releases": schema.StringAttribute{
-					Description: "Access level for releases (repo.releases).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"releases": schema.StringAttribute{
+						Description: "Access level for releases (repo.releases).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"projects": schema.StringAttribute{
-					Description: "Access level for projects (repo.projects).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"projects": schema.StringAttribute{
+						Description: "Access level for projects (repo.projects).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"packages": schema.StringAttribute{
-					Description: "Access level for packages (repo.packages).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"packages": schema.StringAttribute{
+						Description: "Access level for packages (repo.packages).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
-				},
-				"actions": schema.StringAttribute{
-					Description: "Access level for actions (repo.actions).",
-					Optional:    true,
-					Validators: []validator.String{
-						stringvalidator.OneOf("none", "read", "write", "admin"),
+					"actions": schema.StringAttribute{
+						Description: "Access level for actions (repo.actions).",
+						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("none", "read", "write", "admin"),
+						},
 					},
 				},
 			},
 		},
-	},
 	}
 }
 
@@ -521,9 +503,17 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	defer un(trace(ctx, "Update team resource"))
 
 	var data teamResourceModel
+	var priorData teamResourceModel
 
 	// Read Terraform plan data into model
 	diags := req.Plan.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Read prior state to preserve permission if it's not in the plan
+	diags = req.State.Get(ctx, &priorData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -538,6 +528,11 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		"can_create_org_repo":       data.CanCreateOrgRepo.ValueBool(),
 		"includes_all_repositories": data.IncludesAllRepositories.ValueBool(),
 	})
+
+	// If permission is not in the plan, preserve the prior state's permission
+	if data.Permission.IsNull() && !priorData.Permission.IsNull() {
+		data.Permission = priorData.Permission
+	}
 
 	// Generate API request body from plan
 	opts := forgejo.EditTeamOption{}
