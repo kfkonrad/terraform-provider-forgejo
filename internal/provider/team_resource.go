@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"google.golang.org/grpc/attributes"
 
 	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 )
@@ -252,7 +251,6 @@ func (r *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"permission": schema.StringAttribute{
 				Description: "Permission level of the team. Possible values are 'read', 'write', or 'admin'.",
-				Optional:    true,
 				Validators: []validator.String{
 					stringvalidator.OneOf(
 						"read",
