@@ -1,12 +1,14 @@
 package provider_test
 
 import (
+	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
@@ -258,6 +260,47 @@ resource "forgejo_team" "test" {
 }
 `,
 				ExpectError: regexp.MustCompile("Invalid permission configuration"),
+			},
+		},
+	})
+}
+
+func TestAccTeamResource_Import(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create a team
+			{
+				Config: providerConfig + `
+resource "forgejo_organization" "test" {
+	name = "tftest_team_import"
+}
+
+resource "forgejo_team" "test" {
+	organization = forgejo_organization.test.name
+	name         = "importable"
+	is_admin     = true
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("name"), knownvalue.StringExact("importable")),
+				},
+			},
+			// Import the team using custom ID format: organization/team_id
+			{
+				ResourceName:      "forgejo_team.test",
+				ImportState:       true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					// Get the team ID from the state
+					rs := s.RootModule().Resources["forgejo_team.test"]
+					id := rs.Primary.Attributes["id"]
+					org := rs.Primary.Attributes["organization"]
+					return fmt.Sprintf("%s/%s", org, id), nil
+				},
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"description", "can_create_org_repo", "includes_all_repositories"}, // These fields are computed/default
 			},
 		},
 	})

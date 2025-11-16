@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -21,8 +22,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &teamResource{}
-	_ resource.ResourceWithConfigure = &teamResource{}
+	_ resource.Resource                = &teamResource{}
+	_ resource.ResourceWithConfigure    = &teamResource{}
+	_ resource.ResourceWithImportState  = &teamResource{}
 )
 
 // teamResource is the resource implementation.
@@ -319,6 +321,68 @@ func (m *teamResourceModel) validateIsAdmin() string {
 	return ""
 }
 
+// permissionValueOrNull converts an API permission value to a terraform type.String
+// "none" values are converted to null, "admin" is downgraded to "read" in granular mode
+func permissionValueOrNull(apiValue string) types.String {
+	if apiValue == "" || apiValue == "none" {
+		return types.StringNull()
+	}
+	if apiValue == "admin" {
+		return types.StringValue("read")
+	}
+	return types.StringValue(apiValue)
+}
+
+// derivePermissionsFromAPI derives is_admin and permissions from API response
+// If all units in units_map are "admin", set is_admin=true
+// Otherwise, set is_admin=false and build permissions from units_map
+func derivePermissionsFromAPI(m *teamResourceModel, team *forgejo.Team) {
+	if team.UnitsMap == nil || len(team.UnitsMap) == 0 {
+		// No units from API, default to granular with no specific permissions
+		m.IsAdmin = types.BoolValue(false)
+		m.Permissions = types.ObjectNull(permissionsAttrTypes())
+		return
+	}
+
+	// Check if all units are "admin"
+	allAdmin := true
+	for _, permission := range team.UnitsMap {
+		if permission != "admin" {
+			allAdmin = false
+			break
+		}
+	}
+
+	if allAdmin {
+		// All units are admin, set is_admin=true
+		m.IsAdmin = types.BoolValue(true)
+		m.Permissions = types.ObjectNull(permissionsAttrTypes())
+	} else {
+		// Mixed permissions, set is_admin=false and build permissions block
+		m.IsAdmin = types.BoolValue(false)
+
+		// Build permissions from units_map
+		// Set to null for "none" values, downgrade "admin" to "read"
+		perms := permissionsModel{
+			Code:      permissionValueOrNull(team.UnitsMap["repo.code"]),
+			Issues:    permissionValueOrNull(team.UnitsMap["repo.issues"]),
+			Pulls:     permissionValueOrNull(team.UnitsMap["repo.pulls"]),
+			ExtIssues: permissionValueOrNull(team.UnitsMap["repo.ext_issues"]),
+			Wiki:      permissionValueOrNull(team.UnitsMap["repo.wiki"]),
+			ExtWiki:   permissionValueOrNull(team.UnitsMap["repo.ext_wiki"]),
+			Releases:  permissionValueOrNull(team.UnitsMap["repo.releases"]),
+			Projects:  permissionValueOrNull(team.UnitsMap["repo.projects"]),
+			Packages:  permissionValueOrNull(team.UnitsMap["repo.packages"]),
+			Actions:   permissionValueOrNull(team.UnitsMap["repo.actions"]),
+		}
+
+		// Convert to object type
+		ctx := context.Background()
+		permsObj, _ := types.ObjectValueFrom(ctx, permissionsAttrTypes(), perms)
+		m.Permissions = permsObj
+	}
+}
+
 // Metadata returns the resource type name.
 func (r *teamResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_team"
@@ -472,6 +536,83 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 	}
 
 	r.client = client
+}
+
+// ImportState implements resource.ResourceWithImportState.
+// ImportState is called when importing an existing resource.
+// The import ID format is: team_id
+// Example: terraform import forgejo_team.developers my-org/42
+func (r *teamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	defer un(trace(ctx, "Import team resource"))
+
+	teamIDStr := req.ID
+
+	// Parse team ID
+	teamID, err := strconv.ParseInt(teamIDStr, 10, 64)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid team ID",
+			fmt.Sprintf("Team ID must be a number, got: %s", teamIDStr),
+		)
+		return
+	}
+
+	tflog.Info(ctx, "Importing team", map[string]any{
+		"team_id":      teamID,
+	})
+
+	// Fetch the team from Forgejo API
+	team, res, err := r.client.GetTeam(teamID)
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error fetching team", map[string]any{
+				"status": res.Status,
+			})
+		}
+
+		var msg string
+		if res != nil {
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf("Team with ID %d not found", teamID)
+			default:
+				msg = fmt.Sprintf("Error fetching team: %s", err)
+			}
+		} else {
+			msg = fmt.Sprintf("Error fetching team: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to import team", msg)
+		return
+	}
+
+	// Initialize state model with fetched data
+	data := teamResourceModel{
+		ID:           types.Int64Value(team.ID),
+		Name:         types.StringValue(team.Name),
+		Description:  types.StringValue(team.Description),
+	}
+
+	// Derive is_admin and permissions from API response
+	derivePermissionsFromAPI(&data, team)
+
+	// Set optional fields
+	data.CanCreateOrgRepo = types.BoolValue(team.CanCreateOrgRepo)
+	data.IncludesAllRepositories = types.BoolValue(team.IncludesAllRepositories)
+
+	// Save the imported state
+	diags := resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Info(ctx, "Team imported successfully", map[string]any{
+		"id":            team.ID,
+		"organization":  team.Organization,
+		"name":          team.Name,
+		"is_admin":      data.IsAdmin.ValueBool(),
+		"permissions":   data.Permissions.String(),
+	})
 }
 
 // Create creates the resource and sets the initial Terraform state.
