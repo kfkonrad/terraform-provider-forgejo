@@ -75,6 +75,8 @@ func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
 	// Handle permission based on what we're configured for:
 	// - If state permission is "admin": Keep it as "admin", clear granular_permissions
 	// - If state permission is "granular": Read API values and convert, downgrading admin to read
+	// Note: The API returns different permission values based on units_map, but we preserve
+	// the user's intended permission ("admin" vs "granular") from state
 	if !m.Permission.IsNull() {
 		switch m.Permission.ValueString() {
 		case "admin":
@@ -83,6 +85,7 @@ func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
 			m.GranularPermissions = types.ObjectNull(granularPermissionsAttrTypes())
 		case "granular":
 			// Granular permissions - read from API and map values
+			// Even if API returns "read" or other values, we keep state as "granular"
 			m.readGranularPermissionsFromAPI(ctx, t)
 		}
 	}
@@ -102,7 +105,7 @@ func (m *teamResourceModel) readGranularPermissionsFromAPI(ctx context.Context, 
 		return
 	}
 
-	// Extract current granular_permissions to check which fields were explicitly set
+	// Extract current granular_permissions to check which fields were explicitly set by user
 	var currentGranular granularPermissionsModel
 	if !m.GranularPermissions.IsNull() && !m.GranularPermissions.IsUnknown() {
 		d := m.GranularPermissions.As(ctx, &currentGranular, basetypes.ObjectAsOptions{})
@@ -113,125 +116,42 @@ func (m *teamResourceModel) readGranularPermissionsFromAPI(ctx context.Context, 
 	}
 
 	// Build new granular_permissions from API values
+	// Strategy: For fields that were set by user, sync from API (converting admin->read)
+	//           For fields that were NOT set by user (null), keep them null
 	newGranular := granularPermissionsModel{}
-	unitMap := map[string]*types.String{
-		"repo.code":       &newGranular.Code,
-		"repo.issues":     &newGranular.Issues,
-		"repo.pulls":      &newGranular.Pulls,
-		"repo.ext_issues": &newGranular.ExtIssues,
-		"repo.wiki":       &newGranular.Wiki,
-		"repo.ext_wiki":   &newGranular.ExtWiki,
-		"repo.releases":   &newGranular.Releases,
-		"repo.projects":   &newGranular.Projects,
-		"repo.packages":   &newGranular.Packages,
-		"repo.actions":    &newGranular.Actions,
-	}
 
-	fieldNames := []string{
-		"code", "issues", "pulls", "ext_issues", "wiki", "ext_wiki", "releases", "projects", "packages", "actions",
-	}
+	// Define a helper to handle each field
+	handleField := func(apiKey string, stateField, currentField types.String) types.String {
+		apiValue := t.UnitsMap[apiKey]
 
-	for i, unitKey := range []string{
-		"repo.code", "repo.issues", "repo.pulls", "repo.ext_issues", "repo.wiki",
-		"repo.ext_wiki", "repo.releases", "repo.projects", "repo.packages", "repo.actions",
-	} {
-		apiValue := t.UnitsMap[unitKey]
-		fieldPtr := unitMap[unitKey]
+		// If field was null in current state, keep it null
+		if currentField.IsNull() {
+			return types.StringNull()
+		}
 
+		// Field was set by user, so sync from API
 		if apiValue == "" {
-			// No value from API for this unit
-			// Preserve null if it was null in state, otherwise leave as is
-			// Check current state for this field
-			switch fieldNames[i] {
-			case "code":
-				if !currentGranular.Code.IsNull() && currentGranular.Code.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Code.IsNull() {
-					*fieldPtr = currentGranular.Code
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "issues":
-				if !currentGranular.Issues.IsNull() && currentGranular.Issues.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Issues.IsNull() {
-					*fieldPtr = currentGranular.Issues
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "pulls":
-				if !currentGranular.Pulls.IsNull() && currentGranular.Pulls.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Pulls.IsNull() {
-					*fieldPtr = currentGranular.Pulls
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "ext_issues":
-				if !currentGranular.ExtIssues.IsNull() && currentGranular.ExtIssues.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.ExtIssues.IsNull() {
-					*fieldPtr = currentGranular.ExtIssues
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "wiki":
-				if !currentGranular.Wiki.IsNull() && currentGranular.Wiki.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Wiki.IsNull() {
-					*fieldPtr = currentGranular.Wiki
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "ext_wiki":
-				if !currentGranular.ExtWiki.IsNull() && currentGranular.ExtWiki.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.ExtWiki.IsNull() {
-					*fieldPtr = currentGranular.ExtWiki
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "releases":
-				if !currentGranular.Releases.IsNull() && currentGranular.Releases.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Releases.IsNull() {
-					*fieldPtr = currentGranular.Releases
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "projects":
-				if !currentGranular.Projects.IsNull() && currentGranular.Projects.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Projects.IsNull() {
-					*fieldPtr = currentGranular.Projects
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "packages":
-				if !currentGranular.Packages.IsNull() && currentGranular.Packages.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Packages.IsNull() {
-					*fieldPtr = currentGranular.Packages
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			case "actions":
-				if !currentGranular.Actions.IsNull() && currentGranular.Actions.ValueString() == "none" {
-					*fieldPtr = types.StringValue("none")
-				} else if !currentGranular.Actions.IsNull() {
-					*fieldPtr = currentGranular.Actions
-				} else {
-					*fieldPtr = types.StringNull()
-				}
-			}
+			// API doesn't have a value, this shouldn't happen but preserve current
+			return currentField
 		} else if apiValue == "admin" {
 			// Downgrade admin to read in granular mode
-			*fieldPtr = types.StringValue("read")
+			return types.StringValue("read")
 		} else {
-			// Use API value as-is (read or write)
-			*fieldPtr = types.StringValue(apiValue)
+			// Use API value as-is (read, write, none)
+			return types.StringValue(apiValue)
 		}
 	}
+
+	newGranular.Code = handleField("repo.code", currentGranular.Code, currentGranular.Code)
+	newGranular.Issues = handleField("repo.issues", currentGranular.Issues, currentGranular.Issues)
+	newGranular.Pulls = handleField("repo.pulls", currentGranular.Pulls, currentGranular.Pulls)
+	newGranular.ExtIssues = handleField("repo.ext_issues", currentGranular.ExtIssues, currentGranular.ExtIssues)
+	newGranular.Wiki = handleField("repo.wiki", currentGranular.Wiki, currentGranular.Wiki)
+	newGranular.ExtWiki = handleField("repo.ext_wiki", currentGranular.ExtWiki, currentGranular.ExtWiki)
+	newGranular.Releases = handleField("repo.releases", currentGranular.Releases, currentGranular.Releases)
+	newGranular.Projects = handleField("repo.projects", currentGranular.Projects, currentGranular.Projects)
+	newGranular.Packages = handleField("repo.packages", currentGranular.Packages, currentGranular.Packages)
+	newGranular.Actions = handleField("repo.actions", currentGranular.Actions, currentGranular.Actions)
 
 	// Convert model to object
 	newGranularObj, d := types.ObjectValueFrom(ctx, granularPermissionsAttrTypes(), newGranular)
@@ -351,13 +271,15 @@ func (m *teamResourceModel) to(o *forgejo.CreateTeamOption) {
 
 	// Permission field handling:
 	// - permission="admin": send "admin" to API, send all units as "admin"
-	// - permission="granular": don't send permission field to API, send granular units instead
+	// - permission="granular": send "read" to API (default), send granular units instead
 	if !m.Permission.IsNull() {
 		permValue := m.Permission.ValueString()
 		if permValue == "admin" {
 			o.Permission = forgejo.AccessMode("admin")
+		} else if permValue == "granular" {
+			// For granular, send "read" as the base permission level
+			o.Permission = forgejo.AccessMode("read")
 		}
-		// For "granular", we don't set o.Permission, only o.UnitsMap
 	}
 
 	// Always build and send units_map based on permission setting
@@ -379,13 +301,15 @@ func (m *teamResourceModel) toEdit(o *forgejo.EditTeamOption) {
 
 	// Permission field handling:
 	// - permission="admin": send "admin" to API, send all units as "admin"
-	// - permission="granular": don't send permission field to API, send granular units instead
+	// - permission="granular": send "read" to API (default), send granular units instead
 	if !m.Permission.IsNull() {
 		permValue := m.Permission.ValueString()
 		if permValue == "admin" {
 			o.Permission = forgejo.AccessMode("admin")
+		} else if permValue == "granular" {
+			// For granular, send "read" as the base permission level
+			o.Permission = forgejo.AccessMode("read")
 		}
-		// For "granular", we don't set o.Permission, only o.UnitsMap
 	}
 
 	// Always build and send units_map based on permission setting
@@ -399,7 +323,7 @@ func (m *teamResourceModel) validatePermissions() string {
 	}
 
 	permValue := m.Permission.ValueString()
-	if permValue == "admin" && !m.GranularPermissions.IsNull() && !m.GranularPermissions.IsUnknown() {
+	if permValue == "admin" && !(m.GranularPermissions.IsNull() || m.GranularPermissions.IsUnknown()) {
 		return "granular_permissions must not be set when permission is 'admin'"
 	}
 
@@ -737,7 +661,7 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if data.Permission.IsNull() && !priorData.Permission.IsNull() {
 		data.Permission = priorData.Permission
 	}
-	if data.GranularPermissions.IsNull() && !priorData.GranularPermissions.IsNull() {
+	if data.GranularPermissions.IsNull() && !priorData.GranularPermissions.IsNull() && data.Permission != types.StringValue("admin") {
 		data.GranularPermissions = priorData.GranularPermissions
 	}
 
