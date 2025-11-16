@@ -37,14 +37,14 @@ type teamResourceModel struct {
 	Organization            types.String `tfsdk:"organization"`
 	Name                    types.String `tfsdk:"name"`
 	Description             types.String `tfsdk:"description"`
-	Permission              types.String `tfsdk:"permission"`
-	GranularPermissions     types.Object `tfsdk:"granular_permissions"`
+	IsAdmin                 types.Bool   `tfsdk:"is_admin"`
+	Permissions             types.Object `tfsdk:"permissions"`
 	CanCreateOrgRepo        types.Bool   `tfsdk:"can_create_org_repo"`
 	IncludesAllRepositories types.Bool   `tfsdk:"includes_all_repositories"`
 }
 
-// granularPermissionsModel represents the granular_permissions block
-type granularPermissionsModel struct {
+// permissionsModel represents the permissions block
+type permissionsModel struct {
 	Code      types.String `tfsdk:"code"`
 	Issues    types.String `tfsdk:"issues"`
 	Pulls     types.String `tfsdk:"pulls"`
@@ -72,22 +72,15 @@ func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
 		m.Description = types.StringValue(t.Description)
 	}
 
-	// Handle permission based on what we're configured for:
-	// - If state permission is "admin": Keep it as "admin", clear granular_permissions
-	// - If state permission is "granular": Read API values and convert, downgrading admin to read
-	// Note: The API returns different permission values based on units_map, but we preserve
-	// the user's intended permission ("admin" vs "granular") from state
-	if !m.Permission.IsNull() {
-		switch m.Permission.ValueString() {
-		case "admin":
-			// Admin permissions - don't read granular_permissions from API
-			// Keep permission as "admin" and clear granular_permissions
-			m.GranularPermissions = types.ObjectNull(granularPermissionsAttrTypes())
-		case "granular":
-			// Granular permissions - read from API and map values
-			// Even if API returns "read" or other values, we keep state as "granular"
-			m.readGranularPermissionsFromAPI(ctx, t)
+	// Handle permissions based on is_admin setting:
+	// - If is_admin = true: Leave permissions block alone (it's ignored by the API)
+	// - If is_admin = false: Read API values and convert, downgrading admin to read
+	if !m.IsAdmin.IsNull() {
+		if !m.IsAdmin.ValueBool() {
+			// Granular mode - read from API and map values
+			m.readPermissionsFromAPI(ctx, t)
 		}
+		// Admin mode - don't touch permissions block, let it be ignored
 	}
 
 	if !m.CanCreateOrgRepo.IsNull() {
@@ -98,27 +91,27 @@ func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
 	}
 }
 
-// readGranularPermissionsFromAPI reads the units_map from API and converts to granular_permissions
-func (m *teamResourceModel) readGranularPermissionsFromAPI(ctx context.Context, t *forgejo.Team) {
+// readPermissionsFromAPI reads the units_map from API and converts to permissions block
+func (m *teamResourceModel) readPermissionsFromAPI(ctx context.Context, t *forgejo.Team) {
 	if t.UnitsMap == nil || len(t.UnitsMap) == 0 {
-		// No units from API, keep existing granular_permissions (don't change it)
+		// No units from API, keep existing permissions (don't change it)
 		return
 	}
 
-	// Extract current granular_permissions to check which fields were explicitly set by user
-	var currentGranular granularPermissionsModel
-	if !m.GranularPermissions.IsNull() && !m.GranularPermissions.IsUnknown() {
-		d := m.GranularPermissions.As(ctx, &currentGranular, basetypes.ObjectAsOptions{})
+	// Extract current permissions to check which fields were explicitly set by user
+	var currentPerms permissionsModel
+	if !m.Permissions.IsNull() && !m.Permissions.IsUnknown() {
+		d := m.Permissions.As(ctx, &currentPerms, basetypes.ObjectAsOptions{})
 		if d.HasError() {
 			// Can't extract, skip
 			return
 		}
 	}
 
-	// Build new granular_permissions from API values
+	// Build new permissions from API values
 	// Strategy: For fields that were set by user, sync from API (converting admin->read)
 	//           For fields that were NOT set by user (null), keep them null
-	newGranular := granularPermissionsModel{}
+	newPerms := permissionsModel{}
 
 	// Define a helper to handle each field
 	handleField := func(apiKey string, stateField, currentField types.String) types.String {
@@ -142,28 +135,28 @@ func (m *teamResourceModel) readGranularPermissionsFromAPI(ctx context.Context, 
 		}
 	}
 
-	newGranular.Code = handleField("repo.code", currentGranular.Code, currentGranular.Code)
-	newGranular.Issues = handleField("repo.issues", currentGranular.Issues, currentGranular.Issues)
-	newGranular.Pulls = handleField("repo.pulls", currentGranular.Pulls, currentGranular.Pulls)
-	newGranular.ExtIssues = handleField("repo.ext_issues", currentGranular.ExtIssues, currentGranular.ExtIssues)
-	newGranular.Wiki = handleField("repo.wiki", currentGranular.Wiki, currentGranular.Wiki)
-	newGranular.ExtWiki = handleField("repo.ext_wiki", currentGranular.ExtWiki, currentGranular.ExtWiki)
-	newGranular.Releases = handleField("repo.releases", currentGranular.Releases, currentGranular.Releases)
-	newGranular.Projects = handleField("repo.projects", currentGranular.Projects, currentGranular.Projects)
-	newGranular.Packages = handleField("repo.packages", currentGranular.Packages, currentGranular.Packages)
-	newGranular.Actions = handleField("repo.actions", currentGranular.Actions, currentGranular.Actions)
+	newPerms.Code = handleField("repo.code", currentPerms.Code, currentPerms.Code)
+	newPerms.Issues = handleField("repo.issues", currentPerms.Issues, currentPerms.Issues)
+	newPerms.Pulls = handleField("repo.pulls", currentPerms.Pulls, currentPerms.Pulls)
+	newPerms.ExtIssues = handleField("repo.ext_issues", currentPerms.ExtIssues, currentPerms.ExtIssues)
+	newPerms.Wiki = handleField("repo.wiki", currentPerms.Wiki, currentPerms.Wiki)
+	newPerms.ExtWiki = handleField("repo.ext_wiki", currentPerms.ExtWiki, currentPerms.ExtWiki)
+	newPerms.Releases = handleField("repo.releases", currentPerms.Releases, currentPerms.Releases)
+	newPerms.Projects = handleField("repo.projects", currentPerms.Projects, currentPerms.Projects)
+	newPerms.Packages = handleField("repo.packages", currentPerms.Packages, currentPerms.Packages)
+	newPerms.Actions = handleField("repo.actions", currentPerms.Actions, currentPerms.Actions)
 
 	// Convert model to object
-	newGranularObj, d := types.ObjectValueFrom(ctx, granularPermissionsAttrTypes(), newGranular)
+	newPermsObj, d := types.ObjectValueFrom(ctx, permissionsAttrTypes(), newPerms)
 	if d.HasError() {
 		// Can't convert, keep existing
 		return
 	}
-	m.GranularPermissions = newGranularObj
+	m.Permissions = newPermsObj
 }
 
-// granularPermissionsAttrTypes returns the attribute types for the granularPermissionsModel
-func granularPermissionsAttrTypes() map[string]attr.Type {
+// permissionsAttrTypes returns the attribute types for the permissionsModel
+func permissionsAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		"code":       types.StringType,
 		"issues":     types.StringType,
@@ -178,16 +171,14 @@ func granularPermissionsAttrTypes() map[string]attr.Type {
 	}
 }
 
-// buildUnitsMap converts the granular_permissions block to a units_map for the API
-// Behavior depends on permission setting:
-// - If permission="admin": all units set to "admin"
-// - If permission="granular": use values from granular_permissions block, defaulting unset to "none"
+// buildUnitsMap converts the permissions block to a units_map for the API
+// Behavior depends on is_admin setting:
+// - If is_admin=true: all units set to "admin"
+// - If is_admin=false: use values from permissions block, defaulting unset to "none"
 func (m *teamResourceModel) buildUnitsMap() map[string]string {
 	unitsMap := make(map[string]string)
 
-	permissionValue := m.Permission.ValueString()
-
-	if permissionValue == "admin" {
+	if m.IsAdmin.ValueBool() {
 		// Admin: set all units to admin
 		unitsMap["repo.code"] = "admin"
 		unitsMap["repo.issues"] = "admin"
@@ -203,8 +194,8 @@ func (m *teamResourceModel) buildUnitsMap() map[string]string {
 	}
 
 	// Granular permissions: extract from block and default unset to "none"
-	if m.GranularPermissions.IsNull() || m.GranularPermissions.IsUnknown() {
-		// No granular_permissions block, default all to "none"
+	if m.Permissions.IsNull() || m.Permissions.IsUnknown() {
+		// No permissions block, default all to "none"
 		unitsMap["repo.code"] = "none"
 		unitsMap["repo.issues"] = "none"
 		unitsMap["repo.pulls"] = "none"
@@ -218,9 +209,9 @@ func (m *teamResourceModel) buildUnitsMap() map[string]string {
 		return unitsMap
 	}
 
-	// Extract granular_permissions block values
-	var granular granularPermissionsModel
-	d := m.GranularPermissions.As(context.Background(), &granular, basetypes.ObjectAsOptions{})
+	// Extract permissions block values
+	var perms permissionsModel
+	d := m.Permissions.As(context.Background(), &perms, basetypes.ObjectAsOptions{})
 	if d.HasError() {
 		// If we can't extract, default all to "none"
 		unitsMap["repo.code"] = "none"
@@ -236,23 +227,23 @@ func (m *teamResourceModel) buildUnitsMap() map[string]string {
 		return unitsMap
 	}
 
-	// Build units from granular_permissions, defaulting null/unset to "none"
-	unitsMap["repo.code"] = granularPermissionsValueOrDefault(granular.Code, "none")
-	unitsMap["repo.issues"] = granularPermissionsValueOrDefault(granular.Issues, "none")
-	unitsMap["repo.pulls"] = granularPermissionsValueOrDefault(granular.Pulls, "none")
-	unitsMap["repo.ext_issues"] = granularPermissionsValueOrDefault(granular.ExtIssues, "none")
-	unitsMap["repo.wiki"] = granularPermissionsValueOrDefault(granular.Wiki, "none")
-	unitsMap["repo.ext_wiki"] = granularPermissionsValueOrDefault(granular.ExtWiki, "none")
-	unitsMap["repo.releases"] = granularPermissionsValueOrDefault(granular.Releases, "none")
-	unitsMap["repo.projects"] = granularPermissionsValueOrDefault(granular.Projects, "none")
-	unitsMap["repo.packages"] = granularPermissionsValueOrDefault(granular.Packages, "none")
-	unitsMap["repo.actions"] = granularPermissionsValueOrDefault(granular.Actions, "none")
+	// Build units from permissions, defaulting null/unset to "none"
+	unitsMap["repo.code"] = permissionsValueOrDefault(perms.Code, "none")
+	unitsMap["repo.issues"] = permissionsValueOrDefault(perms.Issues, "none")
+	unitsMap["repo.pulls"] = permissionsValueOrDefault(perms.Pulls, "none")
+	unitsMap["repo.ext_issues"] = permissionsValueOrDefault(perms.ExtIssues, "none")
+	unitsMap["repo.wiki"] = permissionsValueOrDefault(perms.Wiki, "none")
+	unitsMap["repo.ext_wiki"] = permissionsValueOrDefault(perms.ExtWiki, "none")
+	unitsMap["repo.releases"] = permissionsValueOrDefault(perms.Releases, "none")
+	unitsMap["repo.projects"] = permissionsValueOrDefault(perms.Projects, "none")
+	unitsMap["repo.packages"] = permissionsValueOrDefault(perms.Packages, "none")
+	unitsMap["repo.actions"] = permissionsValueOrDefault(perms.Actions, "none")
 
 	return unitsMap
 }
 
-// granularPermissionsValueOrDefault returns the string value of a types.String, or defaultValue if null/unknown
-func granularPermissionsValueOrDefault(val types.String, defaultValue string) string {
+// permissionsValueOrDefault returns the string value of a types.String, or defaultValue if null/unknown
+func permissionsValueOrDefault(val types.String, defaultValue string) string {
 	if val.IsNull() || val.IsUnknown() {
 		return defaultValue
 	}
@@ -269,20 +260,19 @@ func (m *teamResourceModel) to(o *forgejo.CreateTeamOption) {
 	o.CanCreateOrgRepo = m.CanCreateOrgRepo.ValueBool()
 	o.IncludesAllRepositories = m.IncludesAllRepositories.ValueBool()
 
-	// Permission field handling:
-	// - permission="admin": send "admin" to API, send all units as "admin"
-	// - permission="granular": send "read" to API (default), send granular units instead
-	if !m.Permission.IsNull() {
-		permValue := m.Permission.ValueString()
-		if permValue == "admin" {
+	// Permission field handling based on is_admin:
+	// - is_admin=true: send "admin" to API, send all units as "admin"
+	// - is_admin=false: send "read" to API (default), send granular units instead
+	if !m.IsAdmin.IsNull() {
+		if m.IsAdmin.ValueBool() {
 			o.Permission = forgejo.AccessMode("admin")
-		} else if permValue == "granular" {
+		} else {
 			// For granular, send "read" as the base permission level
 			o.Permission = forgejo.AccessMode("read")
 		}
 	}
 
-	// Always build and send units_map based on permission setting
+	// Always build and send units_map based on is_admin setting
 	o.UnitsMap = m.buildUnitsMap()
 }
 
@@ -299,36 +289,31 @@ func (m *teamResourceModel) toEdit(o *forgejo.EditTeamOption) {
 	includesAllRepositories := m.IncludesAllRepositories.ValueBool()
 	o.IncludesAllRepositories = &includesAllRepositories
 
-	// Permission field handling:
-	// - permission="admin": send "admin" to API, send all units as "admin"
-	// - permission="granular": send "read" to API (default), send granular units instead
-	if !m.Permission.IsNull() {
-		permValue := m.Permission.ValueString()
-		if permValue == "admin" {
+	// Permission field handling based on is_admin:
+	// - is_admin=true: send "admin" to API, send all units as "admin"
+	// - is_admin=false: send "read" to API (default), send granular units instead
+	if !m.IsAdmin.IsNull() {
+		if m.IsAdmin.ValueBool() {
 			o.Permission = forgejo.AccessMode("admin")
-		} else if permValue == "granular" {
+		} else {
 			// For granular, send "read" as the base permission level
 			o.Permission = forgejo.AccessMode("read")
 		}
 	}
 
-	// Always build and send units_map based on permission setting
+	// Always build and send units_map based on is_admin setting
 	o.UnitsMap = m.buildUnitsMap()
 }
 
-// validatePermissions checks that granular_permissions is not set when permission is admin
-func (m *teamResourceModel) validatePermissions() string {
-	if m.Permission.IsNull() || m.Permission.IsUnknown() {
-		return "" // Permission is required, will be caught by schema validation
+// validateIsAdmin checks that permissions block is set when is_admin is false
+func (m *teamResourceModel) validateIsAdmin() string {
+	if m.IsAdmin.IsNull() || m.IsAdmin.IsUnknown() {
+		return "" // is_admin is required, will be caught by schema validation
 	}
 
-	permValue := m.Permission.ValueString()
-	if permValue == "admin" && !(m.GranularPermissions.IsNull() || m.GranularPermissions.IsUnknown()) {
-		return "granular_permissions must not be set when permission is 'admin'"
-	}
-
-	if permValue == "granular" && (m.GranularPermissions.IsNull() || m.GranularPermissions.IsUnknown()) {
-		return "granular_permissions must be set when permission is 'granular'"
+	// Only require permissions block when is_admin = false
+	if !m.IsAdmin.ValueBool() && (m.Permissions.IsNull() || m.Permissions.IsUnknown()) {
+		return "permissions must be set when is_admin is false"
 	}
 
 	return ""
@@ -373,15 +358,9 @@ func (r *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					stringvalidator.LengthAtMost(255),
 				},
 			},
-			"permission": schema.StringAttribute{
-				Description: "Permission level of the team. 'admin' grants full administrative access to all repositories. 'granular' allows fine-grained control via the granular_permissions block.",
+			"is_admin": schema.BoolAttribute{
+				Description: "Whether the team has full administrative access to all repositories. When true, uniform admin access is granted. When false, use the permissions block for fine-grained control.",
 				Required:    true,
-				Validators: []validator.String{
-					stringvalidator.OneOf(
-						"admin",
-						"granular",
-					),
-				},
 			},
 			"can_create_org_repo": schema.BoolAttribute{
 				Description: "Whether the team can create repositories in the organization.",
@@ -393,8 +372,8 @@ func (r *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 		},
 		Blocks: map[string]schema.Block{
-			"granular_permissions": schema.SingleNestedBlock{
-				Description: "Granular repository access levels for the team. Required when permission='granular'. Each key represents a repository unit, with values specifying the access level ('none', 'read', 'write', 'admin'). Omitted keys default to 'none'. Must not be set when permission='admin'.",
+			"permissions": schema.SingleNestedBlock{
+				Description: "Repository access levels for the team. Required when is_admin=false. Each key represents a repository unit, with values specifying the access level ('none', 'read', 'write', 'admin'). Omitted keys default to 'none'. Ignored when is_admin=true.",
 				Attributes: map[string]schema.Attribute{
 					"code": schema.StringAttribute{
 						Description: "Access level for code (repo.code).",
@@ -509,17 +488,17 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Validate permission settings
-	if validErr := data.validatePermissions(); validErr != "" {
+	if validErr := data.validateIsAdmin(); validErr != "" {
 		resp.Diagnostics.AddError("Invalid permission configuration", validErr)
 		return
 	}
 
 	tflog.Info(ctx, "Create team", map[string]any{
-		"organization":              data.Organization.ValueString(),
-		"name":                      data.Name.ValueString(),
-		"description":               data.Description.ValueString(),
-		"permission":                data.Permission.ValueString(),
-		"granular_permissions":      data.GranularPermissions.String(),
+		"organization":    data.Organization.ValueString(),
+		"name":            data.Name.ValueString(),
+		"description":     data.Description.ValueString(),
+		"is_admin":        data.IsAdmin.ValueBool(),
+		"permissions":     data.Permissions.String(),
 		"can_create_org_repo":       data.CanCreateOrgRepo.ValueBool(),
 		"includes_all_repositories": data.IncludesAllRepositories.ValueBool(),
 	})
@@ -648,25 +627,25 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	tflog.Info(ctx, "Update team", map[string]any{
-		"id":                        data.ID.ValueInt64(),
-		"name":                      data.Name.ValueString(),
-		"description":               data.Description.ValueString(),
-		"permission":                data.Permission.ValueString(),
-		"granular_permissions":      data.GranularPermissions.String(),
+		"id":            data.ID.ValueInt64(),
+		"name":          data.Name.ValueString(),
+		"description":   data.Description.ValueString(),
+		"is_admin":      data.IsAdmin.ValueBool(),
+		"permissions":   data.Permissions.String(),
 		"can_create_org_repo":       data.CanCreateOrgRepo.ValueBool(),
 		"includes_all_repositories": data.IncludesAllRepositories.ValueBool(),
 	})
 
-	// If permission is not in the plan, preserve the prior state's permission and granular_permissions
-	if data.Permission.IsNull() && !priorData.Permission.IsNull() {
-		data.Permission = priorData.Permission
+	// If is_admin is not in the plan, preserve the prior state's is_admin and permissions
+	if data.IsAdmin.IsNull() && !priorData.IsAdmin.IsNull() {
+		data.IsAdmin = priorData.IsAdmin
 	}
-	if data.GranularPermissions.IsNull() && !priorData.GranularPermissions.IsNull() && data.Permission != types.StringValue("admin") {
-		data.GranularPermissions = priorData.GranularPermissions
+	if data.Permissions.IsNull() && !priorData.Permissions.IsNull() && !data.IsAdmin.ValueBool() {
+		data.Permissions = priorData.Permissions
 	}
 
 	// Validate permission settings
-	if validErr := data.validatePermissions(); validErr != "" {
+	if validErr := data.validateIsAdmin(); validErr != "" {
 		resp.Diagnostics.AddError("Invalid permission configuration", validErr)
 		return
 	}

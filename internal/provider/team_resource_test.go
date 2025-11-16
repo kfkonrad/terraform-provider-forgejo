@@ -15,7 +15,7 @@ func TestAccTeamResource_Granular(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create and Read testing with granular_permissions block
+			// Create and Read testing with permissions block
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
@@ -25,8 +25,8 @@ resource "forgejo_organization" "test" {
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "developers"
-	permission   = "granular"
-	granular_permissions {
+	is_admin     = false
+	permissions {
 		code   = "write"
 		issues = "read"
 	}
@@ -36,10 +36,10 @@ resource "forgejo_team" "test" {
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("organization"), knownvalue.StringExact("tftest_team_org")),
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("name"), knownvalue.StringExact("developers")),
-					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("permission"), knownvalue.StringExact("granular")),
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("is_admin"), knownvalue.Bool(false)),
 				},
 			},
-			// Update and Read testing - change granular permissions
+			// Update and Read testing - change permissions
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
@@ -52,8 +52,8 @@ resource "forgejo_team" "test" {
 	description               = "Development team"
 	can_create_org_repo       = true
 	includes_all_repositories = true
-	permission                = "granular"
-	granular_permissions {
+	is_admin                  = false
+	permissions {
 		code   = "write"
 		issues = "write"
 		pulls  = "write"
@@ -67,7 +67,7 @@ resource "forgejo_team" "test" {
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("description"), knownvalue.StringExact("Development team")),
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("can_create_org_repo"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("includes_all_repositories"), knownvalue.Bool(true)),
-					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("permission"), knownvalue.StringExact("granular")),
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("is_admin"), knownvalue.Bool(false)),
 				},
 			},
 			// Re-plan to ensure no drift
@@ -83,8 +83,8 @@ resource "forgejo_team" "test" {
 	description               = "Development team"
 	can_create_org_repo       = true
 	includes_all_repositories = true
-	permission                = "granular"
-	granular_permissions {
+	is_admin                  = false
+	permissions {
 		code   = "write"
 		issues = "write"
 		pulls  = "write"
@@ -113,12 +113,12 @@ resource "forgejo_organization" "test" {
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "admins"
-	permission   = "admin"
+	is_admin     = true
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("permission"), knownvalue.StringExact("admin")),
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("is_admin"), knownvalue.Bool(true)),
 				},
 			},
 			// Re-plan to ensure no drift
@@ -131,7 +131,7 @@ resource "forgejo_organization" "test" {
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "admins"
-	permission   = "admin"
+	is_admin     = true
 }
 `,
 				PlanOnly:           true,
@@ -146,7 +146,7 @@ func TestAccTeamResource_GranularMinimal(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create with granular permission but minimal access block - all units default to "none"
+			// Create with is_admin=false but minimal permissions block
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
@@ -156,15 +156,15 @@ resource "forgejo_organization" "test" {
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "readers"
-	permission   = "granular"
-	granular_permissions {
+	is_admin     = false
+	permissions {
 		code = "read"
 	}
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("permission"), knownvalue.StringExact("granular")),
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("is_admin"), knownvalue.Bool(false)),
 				},
 			},
 			// Re-plan to ensure no drift
@@ -177,8 +177,8 @@ resource "forgejo_organization" "test" {
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "readers"
-	permission   = "granular"
-	granular_permissions {
+	is_admin     = false
+	permissions {
 		code = "read"
 	}
 }
@@ -190,28 +190,50 @@ resource "forgejo_team" "test" {
 	})
 }
 
-func TestAccTeamResource_AdminConflict(t *testing.T) {
+func TestAccTeamResource_AdminIgnoresPermissions(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Try to create team with both admin permission and granular_permissions - should error
+			// Create team with is_admin=true and permissions block - should work, permissions ignored
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
-	name = "tftest_team_conflict"
+	name = "tftest_team_ignore"
 }
 
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
-	name         = "invalid"
-	permission   = "admin"
-	granular_permissions {
+	name         = "managers"
+	is_admin     = true
+	permissions {
 		code = "write"
 	}
 }
 `,
-				ExpectError: regexp.MustCompile("Invalid permission configuration"),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("is_admin"), knownvalue.Bool(true)),
+				},
+			},
+			// Re-plan to ensure no drift (permissions block should be ignored)
+			{
+				Config: providerConfig + `
+resource "forgejo_organization" "test" {
+	name = "tftest_team_ignore"
+}
+
+resource "forgejo_team" "test" {
+	organization = forgejo_organization.test.name
+	name         = "managers"
+	is_admin     = true
+	permissions {
+		code = "write"
+	}
+}
+`,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false, // Should not plan any changes
 			},
 		},
 	})
@@ -222,7 +244,7 @@ func TestAccTeamResource_GranularRequired(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Try to create team with granular permission but no granular_permissions block - should error
+			// Try to create team with is_admin=false but no permissions block - should error
 			{
 				Config: providerConfig + `
 resource "forgejo_organization" "test" {
@@ -232,7 +254,7 @@ resource "forgejo_organization" "test" {
 resource "forgejo_team" "test" {
 	organization = forgejo_organization.test.name
 	name         = "invalid"
-	permission   = "granular"
+	is_admin     = false
 }
 `,
 				ExpectError: regexp.MustCompile("Invalid permission configuration"),
