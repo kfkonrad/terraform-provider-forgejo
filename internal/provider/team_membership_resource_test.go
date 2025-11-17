@@ -84,7 +84,7 @@ resource "forgejo_team_membership" "test" {
 					statecheck.ExpectKnownValue("forgejo_team_membership.test", tfjsonpath.New("username"), knownvalue.StringExact("tftest_import")),
 				},
 			},
-			// Import the team membership using custom ID format: team_id/username
+			// Import the team membership using custom ID format: team_id:username
 			{
 				ResourceName:      "forgejo_team_membership.test",
 				ImportState:       true,
@@ -93,7 +93,7 @@ resource "forgejo_team_membership" "test" {
 					rs := s.RootModule().Resources["forgejo_team_membership.test"]
 					teamID := rs.Primary.Attributes["team_id"]
 					username := rs.Primary.Attributes["username"]
-					return fmt.Sprintf("%s/%s", teamID, username), nil
+					return fmt.Sprintf("%s:%s", teamID, username), nil
 				},
 				ImportStateCheck: func(s []*terraform.InstanceState) error {
 					// Verify that both fields are present after import
