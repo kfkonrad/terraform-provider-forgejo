@@ -1,3 +1,22 @@
+## 0.6.0
+
+FEATURES:
+
+- **New Resource**: `forgejo_team` ([documentation](docs/resources/team.md))
+- **New Resource**: `forgejo_team_membership` ([documentation](docs/resources/team_membership.md))
+- **New Resource**: `forgejo_access_token` ([documentation](docs/resources/access_token.md))
+- `forgejo_team`: add granular permission control with `granular_permissions` block
+
+ENHANCEMENTS:
+
+- Provider authentication now supports OTP (One-Time Password) for two-factor authentication
+- Improved release process for OpenTofu compatibility
+
+BUG FIXES:
+
+- Release script now correctly handles OpenTofu compatibility
+- Goreleaser configuration updated for OpenTofu compatibility
+
 ## 0.5.4 (October 26, 2025)
 
 BUG FIXES:

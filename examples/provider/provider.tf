@@ -8,6 +8,7 @@ terraform {
 
 variable "forgejo_api_token" { sensitive = true }
 variable "forgejo_password" { sensitive = true }
+variable "forgejo_otp" { sensitive = true }
 
 # Authenticate with API token
 provider "forgejo" {
@@ -39,4 +40,15 @@ resource "forgejo_repository" "example_org" {
   owner       = forgejo_organization.example.name
   name        = "new_org_repo"
   description = "Purely for testing..."
+}
+
+# Authenticate with username, password, and OTP (for two-factor authentication)
+provider "forgejo" {
+  alias    = "otp"
+  host     = "http://localhost:3000"
+  username = "admin"
+  password = var.forgejo_password
+  otp      = var.forgejo_otp
+  # For OTP, it's recommended to use the FORGEJO_OTP environment variable instead of passing it in the configuration
+  # ...or use FORGEJO_USERNAME, FORGEJO_PASSWORD, and FORGEJO_OTP environment variables
 }

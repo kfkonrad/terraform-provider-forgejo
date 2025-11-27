@@ -5,9 +5,18 @@ PROVIDER_NAME="forgejo"
 GITHUB_USER="kfkonrad"
 REGISTRY="ghcr.io"
 
+# Parse arguments
+SNAPSHOT_FLAG="--snapshot"
+if [[ "$*" == *"--release"* ]]; then
+  SNAPSHOT_FLAG=""
+  echo "Building non-snapshot release..."
+else
+  echo "Building snapshot..."
+fi
+
 # Build with GoReleaser (no tags needed)
 echo "Building with GoReleaser..."
-goreleaser release --snapshot --clean --skip=publish,sign
+goreleaser release $SNAPSHOT_FLAG --clean --skip=publish,sign
 
 # Get the version from metadata
 VERSION=$(cat dist/metadata.json | jq -r .version)

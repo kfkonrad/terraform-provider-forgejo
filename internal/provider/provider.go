@@ -32,6 +32,7 @@ type forgejoProviderModel struct {
 	Username types.String `tfsdk:"username"`
 	Password types.String `tfsdk:"password"`
 	ApiToken types.String `tfsdk:"api_token"`
+	Otp      types.String `tfsdk:"otp"`
 }
 
 // Metadata returns the provider type name.
@@ -64,6 +65,11 @@ for detailed usage examples and troubleshooting information.`,
 			},
 			"api_token": schema.StringAttribute{
 				Description: "Token for Forgejo API. May also be provided via FORGEJO_API_TOKEN environment variable.",
+				Optional:    true,
+				Sensitive:   true,
+			},
+			"otp": schema.StringAttribute{
+				Description: "OTP (One-Time Password) for two-factor authentication with basic auth. Only used with basic auth (username/password). May also be provided via FORGEJO_OTP environment variable.",
 				Optional:    true,
 				Sensitive:   true,
 			},
@@ -121,6 +127,15 @@ func (p *forgejoProvider) Configure(ctx context.Context, req provider.ConfigureR
 		)
 	}
 
+	if config.Otp.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("otp"),
+			"Unknown Forgejo OTP",
+			"The provider cannot create the Forgejo API client as there is an unknown configuration value for the Forgejo OTP. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the FORGEJO_OTP environment variable.",
+		)
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -132,6 +147,7 @@ func (p *forgejoProvider) Configure(ctx context.Context, req provider.ConfigureR
 	username := os.Getenv("FORGEJO_USERNAME")
 	password := os.Getenv("FORGEJO_PASSWORD")
 	token := os.Getenv("FORGEJO_API_TOKEN")
+	otp := os.Getenv("FORGEJO_OTP")
 
 	if !config.Host.IsNull() {
 		host = config.Host.ValueString()
@@ -147,6 +163,10 @@ func (p *forgejoProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 	if !config.ApiToken.IsNull() {
 		token = config.ApiToken.ValueString()
+	}
+
+	if !config.Otp.IsNull() {
+		otp = config.Otp.ValueString()
 	}
 
 	// If any of the expected configurations are missing, return
@@ -192,6 +212,24 @@ func (p *forgejoProvider) Configure(ctx context.Context, req provider.ConfigureR
 		)
 	}
 
+	if otp != "" && username == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("otp"),
+			"OTP Requires Basic Auth",
+			"The provider cannot create the Forgejo API client as OTP is set but no username is provided. "+
+				"OTP can only be used with basic auth (username/password). Set the username and password values in the configuration or use the FORGEJO_USERNAME and FORGEJO_PASSWORD environment variables.",
+		)
+	}
+
+	if otp != "" && token != "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("otp"),
+			"OTP Cannot Be Used With Token Auth",
+			"The provider cannot create the Forgejo API client as OTP is set with API token authentication. "+
+				"OTP can only be used with basic auth (username/password), not with API token authentication.",
+		)
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -203,13 +241,21 @@ func (p *forgejoProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 	// Create a new Forgejo client using the configuration values
 	if username != "" {
-		tflog.Info(ctx, "Create Forgejo client", map[string]any{
+		logData := map[string]any{
 			"forgejo_host":     host,
 			"forgejo_username": username,
 			"forgejo_password": "***",
-		})
+		}
+		if otp != "" {
+			logData["forgejo_otp"] = "***"
+		}
+		tflog.Info(ctx, "Create Forgejo client", logData)
 
-		client, err = forgejo.NewClient(host, forgejo.SetBasicAuth(username, password))
+		options := []forgejo.ClientOption{forgejo.SetBasicAuth(username, password)}
+		if otp != "" {
+			options = append(options, forgejo.SetOTP(otp))
+		}
+		client, err = forgejo.NewClient(host, options...)
 	}
 	if token != "" {
 		tflog.Info(ctx, "Create Forgejo client", map[string]any{
