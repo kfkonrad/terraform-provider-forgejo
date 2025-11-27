@@ -241,11 +241,17 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
+	// Store the existing token value from state before updating
+	existingToken := data.Token
+
 	// Map response to model (note: token value is not available on read)
 	data.from(foundToken)
 
-	// Clear token value as it's not available from API on subsequent reads
-	data.Token = types.StringNull()
+	// Restore token value from state if API returned empty
+	// (API only returns token on creation, not on subsequent reads)
+	if data.Token.IsNull() || data.Token.ValueString() == "" {
+		data.Token = existingToken
+	}
 
 	// Save data into Terraform state
 	diags = resp.State.Set(ctx, &data)

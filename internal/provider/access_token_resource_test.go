@@ -123,3 +123,50 @@ resource "forgejo_access_token" "test" {
 		},
 	})
 }
+
+func TestAccAccessTokenResource_TokenPersistsAfterRead(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create token - should have token value in state
+			{
+				Config: providerConfig + `
+resource "forgejo_user" "test" {
+	login    = "token_persist_user"
+	email    = "token_persist@localhost.localdomain"
+	password = "passw0rd"
+}
+
+resource "forgejo_access_token" "test" {
+	username = forgejo_user.test.login
+	name     = "persist-test"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("token"), knownvalue.NotNull()),
+				},
+			},
+			// Second apply with same config - token should still be in state
+			// This validates that the token value is preserved when the API returns empty
+			{
+				Config: providerConfig + `
+resource "forgejo_user" "test" {
+	login    = "token_persist_user"
+	email    = "token_persist@localhost.localdomain"
+	password = "passw0rd"
+}
+
+resource "forgejo_access_token" "test" {
+	username = forgejo_user.test.login
+	name     = "persist-test"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("token"), knownvalue.NotNull()),
+				},
+			},
+			// Delete testing automatically occurs in TestCase
+		},
+	})
+}

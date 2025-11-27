@@ -1,3 +1,9 @@
+## 0.6.1
+
+BUG FIXES:
+
+- Access Tokens will now remain in terraform state after subsequent applies
+
 ## 0.6.0
 
 FEATURES:
