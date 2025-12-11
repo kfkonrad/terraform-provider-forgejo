@@ -68,5 +68,4 @@ require (
 	google.golang.org/protobuf v1.36.9 // indirect
 )
 
-// replace codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2 => codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2 v2.2.1-0.20251112162819-9b05f35fbf4e
-replace codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2 => /Users/derkev/workspace/codeberg/kfkonrad/forgejo-sdk/forgejo
+replace codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2 => codeberg.org/kfkonrad/forgejo-sdk/forgejo/v2 v2.2.1
