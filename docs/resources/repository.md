@@ -258,9 +258,8 @@ Read-Only:
 
 ## Import
 
-Import is supported using the following syntax:
+Repository can be imported using the owner and repository name separated by a colon. Format: `owner:repo_name`
 
 ```shell
-# Repository can be imported using the format: owner:repo_name
 terraform import forgejo_repository.example my-org:my-repo
 ```

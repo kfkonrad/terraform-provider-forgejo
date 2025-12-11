@@ -63,9 +63,8 @@ resource "forgejo_organization" "non_defaults" {
 
 ## Import
 
-Import is supported using the following syntax:
+Organization can be imported using the organization name.
 
 ```shell
-# Organization can be imported using the organization name
 terraform import forgejo_organization.example my-org
 ```

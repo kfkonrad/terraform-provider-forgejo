@@ -3,6 +3,8 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -19,8 +21,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &collaboratorResource{}
-	_ resource.ResourceWithConfigure = &collaboratorResource{}
+	_ resource.Resource                = &collaboratorResource{}
+	_ resource.ResourceWithConfigure   = &collaboratorResource{}
+	_ resource.ResourceWithImportState = &collaboratorResource{}
 )
 
 // collaboratorResource is the resource implementation.
@@ -96,6 +99,112 @@ func (r *collaboratorResource) Configure(_ context.Context, req resource.Configu
 	}
 
 	r.client = client
+}
+
+// ImportState implements resource.ResourceWithImportState.
+// ImportState is called when importing an existing resource.
+// The import ID format is: repository_id:user
+// Example: terraform import forgejo_collaborator.example 123:john.
+func (r *collaboratorResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	defer un(trace(ctx, "Import collaborator resource"))
+
+	// Parse the import ID (format: repository_id:user)
+	parts := strings.Split(req.ID, ":")
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Invalid import ID format",
+			fmt.Sprintf("Expected format 'repository_id:user', got: %s", req.ID),
+		)
+		return
+	}
+
+	repositoryIDStr := parts[0]
+	username := parts[1]
+
+	// Parse repository ID
+	repositoryID, err := strconv.ParseInt(repositoryIDStr, 10, 64)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid repository ID",
+			fmt.Sprintf("Repository ID must be a number, got: %s", repositoryIDStr),
+		)
+		return
+	}
+
+	tflog.Info(ctx, "Importing collaborator", map[string]any{
+		"repository_id": repositoryID,
+		"user":          username,
+	})
+
+	// Get repository information
+	repo, res, err := r.client.GetRepoByID(repositoryID)
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error fetching repository", map[string]any{
+				"status": res.Status,
+			})
+		}
+
+		var msg string
+		if res != nil {
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf("Repository with ID %d not found", repositoryID)
+			default:
+				msg = fmt.Sprintf("Error fetching repository: %s", err)
+			}
+		} else {
+			msg = fmt.Sprintf("Error fetching repository: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to import collaborator", msg)
+		return
+	}
+
+	// Get collaborator permission
+	perms, res, err := r.client.CollaboratorPermission(repo.Owner.UserName, repo.Name, username)
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error fetching collaborator", map[string]any{
+				"status": res.Status,
+			})
+		}
+
+		var msg string
+		if res != nil {
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf("Collaborator %s not found in repository %s/%s", username, repo.Owner.UserName, repo.Name)
+			case 403:
+				msg = fmt.Sprintf("Not authorized to access collaborator %s in repository %s/%s", username, repo.Owner.UserName, repo.Name)
+			default:
+				msg = fmt.Sprintf("Error fetching collaborator: %s", err)
+			}
+		} else {
+			msg = fmt.Sprintf("Error fetching collaborator: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to import collaborator", msg)
+		return
+	}
+
+	// Initialize state model with fetched data
+	data := collaboratorResourceModel{
+		RepositoryID: types.Int64Value(repositoryID),
+		User:         types.StringValue(username),
+		Permission:   types.StringValue(string(perms.Permission)),
+	}
+
+	// Save the imported state
+	diags := resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Info(ctx, "Collaborator imported successfully", map[string]any{
+		"repository_id": repositoryID,
+		"user":          username,
+		"permission":    perms.Permission,
+	})
 }
 
 // Create creates the resource and sets the initial Terraform state.

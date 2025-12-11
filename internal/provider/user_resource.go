@@ -22,8 +22,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &userResource{}
-	_ resource.ResourceWithConfigure = &userResource{}
+	_ resource.Resource                = &userResource{}
+	_ resource.ResourceWithConfigure   = &userResource{}
+	_ resource.ResourceWithImportState = &userResource{}
 )
 
 // userResource is the resource implementation.
@@ -328,6 +329,65 @@ func (r *userResource) Configure(_ context.Context, req resource.ConfigureReques
 	}
 
 	r.client = client
+}
+
+// ImportState implements resource.ResourceWithImportState.
+// ImportState is called when importing an existing resource.
+// The import ID format is: username
+// Example: terraform import forgejo_user.john john.
+func (r *userResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	defer un(trace(ctx, "Import user resource"))
+
+	username := req.ID
+
+	tflog.Info(ctx, "Importing user", map[string]any{
+		"username": username,
+	})
+
+	// Fetch the user from Forgejo API
+	usr, res, err := r.client.GetUserInfo(username)
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error fetching user", map[string]any{
+				"status": res.Status,
+			})
+		}
+
+		var msg string
+		if res != nil {
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf("User %s not found", username)
+			default:
+				msg = fmt.Sprintf("Error fetching user: %s", err)
+			}
+		} else {
+			msg = fmt.Sprintf("Error fetching user: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to import user", msg)
+		return
+	}
+
+	// Initialize state model with fetched data
+	data := userResourceModel{}
+	data.from(usr)
+
+	// Note: Password cannot be retrieved from API, so it must be set manually in config after import
+	// We'll set it to a placeholder value to indicate it needs to be updated
+	data.Password = types.StringValue("PLACEHOLDER_PASSWORD_MUST_BE_SET_IN_CONFIG")
+
+	// Save the imported state
+	diags := resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Info(ctx, "User imported successfully", map[string]any{
+		"id":       usr.ID,
+		"username": usr.UserName,
+		"email":    usr.Email,
+	})
 }
 
 // Create creates the resource and sets the initial Terraform state.

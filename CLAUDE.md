@@ -152,20 +152,46 @@ Documentation is auto-generated from resource/data source schemas:
 - Uses tools in `tools/` directory with Go generate
 - Generates Terraform registry-compatible markdown in `docs/resources/` and `docs/data-sources/`
 
+**IMPORTANT: Always update documentation when making changes:**
+- Run `make generate` after ANY changes to resources or data sources (schema, behavior, features)
+- Update README.md when adding new resources, data sources, or significant features
+- Update example templates in `examples/` to reflect new functionality
+- Document new features like import support, validation rules, or special behaviors
+- Keep templates and examples in sync with actual resource schemas
+- Outdated documentation will cause user confusion and should be avoided
+
+**When documentation updates are required:**
+- Schema changes (adding, modifying, or removing attributes)
+- New import functionality added to resources
+- Changes to resource behavior or semantics
+- New resources or data sources
+- Changes to authentication or provider configuration
+- New validation rules or constraints
+- Breaking changes or deprecations
+
 ## Common Development Scenarios
 
 **Adding a new resource:**
+
 1. Create `internal/provider/{resource}_resource.go` with schema, model struct, and CRUD methods
 2. Create `internal/provider/{resource}_resource_test.go` with acceptance tests
 3. Register resource in `provider.go` Resources() method
-4. Run `make generate` to create documentation
-5. Add example in `examples/` directory
+4. Add example in `examples/` directory
+5. Run `make generate` to create documentation
+6. Update README.md to list the new resource
+7. Add import support documentation if applicable
 
-**Modifying a resource schema:**
+**Modifying a resource or data source:**
+
 - Ensure `planmodifier` is set for create-only attributes to prevent unexpected recreation
 - Use `Computed: true` for read-only fields from the API
 - Run tests to verify backwards compatibility: `make test`
+- **Always run `make generate` to update documentation**
+- Update examples in `examples/` if the change affects usage patterns
+- Update README.md if adding significant functionality (e.g., import support, new attributes)
+- Document any breaking changes or migrations needed
 
 **Testing against local Forgejo:**
+
 - Start with: `docker-compose -f docker/docker-compose.yml up`
 - Run acceptance tests with: `make testacc`

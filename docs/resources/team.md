@@ -49,9 +49,8 @@ Optional:
 
 ## Import
 
-Import is supported using the following syntax:
+Team can be imported using the team ID.
 
 ```shell
-# Team can be imported using the team ID
 terraform import forgejo_team.example 42
 ```

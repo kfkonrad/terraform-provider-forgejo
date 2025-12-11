@@ -1,0 +1,28 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}} ({{.Name}})
+
+{{ .Description | trimspace }}
+
+{{ if .HasExample -}}
+## Example Usage
+
+{{ tffile .ExampleFile }}
+{{- end }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+User can be imported using the username.
+
+```shell
+terraform import forgejo_user.john john
+```
+
+**Note:** After importing a user, you must set the `password` attribute in your Terraform configuration. The password cannot be retrieved from the API, so Terraform will use a placeholder value during import. You should update your configuration with the actual password or a new password you want to set for the user.

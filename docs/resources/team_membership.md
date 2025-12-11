@@ -21,9 +21,8 @@ Forgejo team membership resource. Manages membership of users in teams.
 
 ## Import
 
-Import is supported using the following syntax:
+Team membership can be imported using the team ID and username separated by a colon. Format: `team_id:username`
 
 ```shell
-# Team membership can be imported using the format: team_id:username
 terraform import forgejo_team_membership.example 42:john
 ```
