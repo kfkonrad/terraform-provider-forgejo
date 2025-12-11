@@ -13,12 +13,10 @@ import (
 const (
 	// providerConfig is a shared configuration to combine with the actual
 	// test configuration so the Forgejo client is properly configured.
-	// It is also possible to use the FORGEJO_ environment variables instead,
-	// such as updating the Makefile and running the testing through that tool.
+	// Authentication is provided via FORGEJO_API_TOKEN or FORGEJO_USERNAME/FORGEJO_PASSWORD
+	// environment variables.
 	providerConfig = `provider "forgejo" {
-  host     = "http://localhost:3000"
-  username = "derkev"
-  password = "derkev12"
+  host = "http://localhost:3000"
 }
 `
 )
@@ -42,6 +40,22 @@ func testAccPreCheck(t *testing.T) {
 	hasAuth := apiToken != "" || (username != "" && password != "")
 	if !hasAuth {
 		t.Fatal("Either FORGEJO_API_TOKEN or both FORGEJO_USERNAME and FORGEJO_PASSWORD must be set for acceptance tests")
+	}
+}
+
+func testAccPreCheckAccessToken(t *testing.T) {
+	// Access token tests require username/password authentication
+	// because creating access tokens for users via API token auth is not allowed by Forgejo
+	username := os.Getenv("FORGEJO_USERNAME")
+	password := os.Getenv("FORGEJO_PASSWORD")
+	apiToken := os.Getenv("FORGEJO_API_TOKEN")
+
+	if apiToken != "" {
+		t.Skip("Access token tests require username/password authentication (FORGEJO_USERNAME and FORGEJO_PASSWORD), skipping because FORGEJO_API_TOKEN is set")
+	}
+
+	if username == "" || password == "" {
+		t.Fatal("Access token tests require both FORGEJO_USERNAME and FORGEJO_PASSWORD to be set")
 	}
 }
 

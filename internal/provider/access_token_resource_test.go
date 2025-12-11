@@ -11,7 +11,7 @@ import (
 
 func TestAccAccessTokenResource_Basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheckAccessToken(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create and Read testing
@@ -43,7 +43,7 @@ resource "forgejo_access_token" "test" {
 
 func TestAccAccessTokenResource_WithScopes(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheckAccessToken(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create and Read testing with single scope
@@ -78,7 +78,7 @@ resource "forgejo_access_token" "test" {
 
 func TestAccAccessTokenResource_ImmutableName(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheckAccessToken(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create token
@@ -126,7 +126,7 @@ resource "forgejo_access_token" "test" {
 
 func TestAccAccessTokenResource_TokenPersistsAfterRead(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheckAccessToken(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create token - should have token value in state

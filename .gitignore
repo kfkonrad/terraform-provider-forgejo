@@ -36,3 +36,4 @@ website/vendor
 
 # Exclude sensitive environment variables
 .env
+terraform-provider-forgejo

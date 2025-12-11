@@ -1,7 +1,6 @@
 package provider_test
 
 import (
-	"fmt"
 	"regexp"
 	"testing"
 
@@ -288,7 +287,7 @@ resource "forgejo_team" "test" {
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("name"), knownvalue.StringExact("importable")),
 				},
 			},
-			// Import the team using custom ID format: organization/team_id
+			// Import the team using team ID
 			{
 				ResourceName: "forgejo_team.test",
 				ImportState:  true,
@@ -296,8 +295,7 @@ resource "forgejo_team" "test" {
 					// Get the team ID from the state
 					rs := s.RootModule().Resources["forgejo_team.test"]
 					id := rs.Primary.Attributes["id"]
-					org := rs.Primary.Attributes["organization"]
-					return fmt.Sprintf("%s/%s", org, id), nil
+					return id, nil
 				},
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"description", "can_create_org_repo", "includes_all_repositories"}, // These fields are computed/default
