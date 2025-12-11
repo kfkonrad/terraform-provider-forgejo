@@ -328,7 +328,7 @@ func (m *accessTokenResourceModel) from(t *forgejo.AccessToken) {
 
 	// Convert scopes from API
 	// Note: Scopes may be reordered by the API, but we preserve them as-is
-	if t.Scopes != nil && len(t.Scopes) > 0 {
+	if len(t.Scopes) > 0 {
 		scopeValues := make([]attr.Value, len(t.Scopes))
 		for i, scope := range t.Scopes {
 			scopeValues[i] = types.StringValue(string(scope))

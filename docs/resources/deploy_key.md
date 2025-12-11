@@ -16,7 +16,7 @@ Forgejo deploy key resource.
 terraform {
   required_providers {
     forgejo = {
-      source = "svalabs/forgejo"
+      source = "kfkonrad/forgejo"
     }
     tls = {
       source = "hashicorp/tls"

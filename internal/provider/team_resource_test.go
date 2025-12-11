@@ -290,8 +290,8 @@ resource "forgejo_team" "test" {
 			},
 			// Import the team using custom ID format: organization/team_id
 			{
-				ResourceName:      "forgejo_team.test",
-				ImportState:       true,
+				ResourceName: "forgejo_team.test",
+				ImportState:  true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
 					// Get the team ID from the state
 					rs := s.RootModule().Resources["forgejo_team.test"]

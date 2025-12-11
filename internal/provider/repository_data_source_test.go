@@ -149,7 +149,7 @@ data "forgejo_repository" "test" {
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
 	name       = "tftest"
-	clone_addr = "https://github.com/svalabs/terraform-provider-forgejo"
+	clone_addr = "https://github.com/kfkonrad/terraform-provider-forgejo"
 	mirror     = false
 }
 data "forgejo_repository" "test" {
@@ -165,7 +165,7 @@ data "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("allow_squash_merge"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/svalabs/terraform-provider-forgejo")),
+					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/kfkonrad/terraform-provider-forgejo")),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("default_branch"), knownvalue.StringExact("main")),
@@ -214,7 +214,7 @@ data "forgejo_repository" "test" {
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
 	name       = "tftest"
-	clone_addr = "https://github.com/svalabs/terraform-provider-forgejo"
+	clone_addr = "https://github.com/kfkonrad/terraform-provider-forgejo"
 	mirror     = true
 }
 data "forgejo_repository" "test" {
@@ -230,7 +230,7 @@ data "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("allow_squash_merge"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/svalabs/terraform-provider-forgejo")),
+					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/kfkonrad/terraform-provider-forgejo")),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("default_branch"), knownvalue.StringExact("main")),

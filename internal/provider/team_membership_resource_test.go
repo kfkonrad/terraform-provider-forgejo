@@ -86,8 +86,8 @@ resource "forgejo_team_membership" "test" {
 			},
 			// Import the team membership using custom ID format: team_id:username
 			{
-				ResourceName:      "forgejo_team_membership.test",
-				ImportState:       true,
+				ResourceName: "forgejo_team_membership.test",
+				ImportState:  true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
 					// Get the team membership data from the state
 					rs := s.RootModule().Resources["forgejo_team_membership.test"]
@@ -112,4 +112,3 @@ resource "forgejo_team_membership" "test" {
 		},
 	})
 }
-

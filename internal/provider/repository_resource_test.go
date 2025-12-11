@@ -735,7 +735,7 @@ resource "forgejo_repository" "test" {
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
 	name       = "tftest"
-	clone_addr = "https://github.com/svalabs/terraform-provider-forgejo"
+	clone_addr = "https://github.com/kfkonrad/terraform-provider-forgejo"
 	mirror     = false
 }
 `,
@@ -749,7 +749,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
-					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/svalabs/terraform-provider-forgejo")),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/kfkonrad/terraform-provider-forgejo")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_branch"), knownvalue.StringExact("main")),
@@ -808,7 +808,7 @@ resource "forgejo_repository" "test" {
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
 	name        = "tftest"
-	clone_addr  = "https://github.com/svalabs/terraform-provider-forgejo"
+	clone_addr  = "https://github.com/kfkonrad/terraform-provider-forgejo"
 	mirror      = false
 	archived    = true
 	description = "Purely for testing..."
@@ -824,7 +824,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
-					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/svalabs/terraform-provider-forgejo")),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/kfkonrad/terraform-provider-forgejo")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_branch"), knownvalue.StringExact("main")),
@@ -883,7 +883,7 @@ resource "forgejo_repository" "test" {
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
 	name       = "tftest"
-	clone_addr = "https://github.com/svalabs/terraform-provider-forgejo"
+	clone_addr = "https://github.com/kfkonrad/terraform-provider-forgejo"
 	mirror     = true
 }
 `,
@@ -897,7 +897,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
-					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/svalabs/terraform-provider-forgejo")),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/kfkonrad/terraform-provider-forgejo")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_branch"), knownvalue.StringExact("main")),
@@ -956,7 +956,7 @@ resource "forgejo_repository" "test" {
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
 	name            = "tftest"
-	clone_addr      = "https://github.com/svalabs/terraform-provider-forgejo"
+	clone_addr      = "https://github.com/kfkonrad/terraform-provider-forgejo"
 	mirror          = true
 	mirror_interval = "12h0m0s"
 	description     = "Purely for testing..."
@@ -972,7 +972,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
-					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/svalabs/terraform-provider-forgejo")),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/kfkonrad/terraform-provider-forgejo")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_branch"), knownvalue.StringExact("main")),
@@ -1031,7 +1031,7 @@ resource "forgejo_repository" "test" {
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
 	name            = "tftest"
-	clone_addr      = "https://github.com/svalabs/terraform-provider-forgejo"
+	clone_addr      = "https://github.com/kfkonrad/terraform-provider-forgejo"
 	mirror          = true
 	mirror_interval = "24h0m0s"
 	description     = "Purely for testing... 123"
@@ -1050,7 +1050,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
-					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/svalabs/terraform-provider-forgejo")),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/kfkonrad/terraform-provider-forgejo")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_branch"), knownvalue.StringExact("main")),

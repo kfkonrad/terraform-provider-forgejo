@@ -16,7 +16,7 @@ Forgejo collaborator data source.
 terraform {
   required_providers {
     forgejo = {
-      source = "svalabs/forgejo"
+      source = "kfkonrad/forgejo"
     }
   }
 }

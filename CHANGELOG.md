@@ -1,3 +1,12 @@
+## 0.7.0
+
+ENHANCEMENTS:
+
+- `forgejo_repository`: add import support using format `owner:repo_name` ([documentation](docs/resources/repository.md))
+- `forgejo_organization`: add import support using format `org_name` ([documentation](docs/resources/organization.md))
+- `forgejo_team`: add import support using format `team_id` ([documentation](docs/resources/team.md))
+- `forgejo_team_membership`: add import support using format `team_id:username` ([documentation](docs/resources/team_membership.md))
+
 ## 0.6.1
 
 BUG FIXES:

@@ -174,21 +174,13 @@ func (r *teamMembershipResource) Read(ctx context.Context, req resource.ReadRequ
 			"status": res.Status,
 		})
 
-		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Team member not found - team id: %d, username: %s: %s",
-				teamID,
-				username,
-				err,
-			)
+		if res.StatusCode == 404 {
 			// Resource doesn't exist anymore, remove from state
 			resp.State.RemoveResource(ctx)
 			return
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
 		}
+
+		msg := fmt.Sprintf("Unknown error: %s", err)
 		resp.Diagnostics.AddError("Unable to get team member", msg)
 
 		return

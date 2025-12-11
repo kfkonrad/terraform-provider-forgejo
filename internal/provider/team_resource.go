@@ -23,8 +23,8 @@ import (
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource                = &teamResource{}
-	_ resource.ResourceWithConfigure    = &teamResource{}
-	_ resource.ResourceWithImportState  = &teamResource{}
+	_ resource.ResourceWithConfigure   = &teamResource{}
+	_ resource.ResourceWithImportState = &teamResource{}
 )
 
 // teamResource is the resource implementation.
@@ -45,7 +45,7 @@ type teamResourceModel struct {
 	IncludesAllRepositories types.Bool   `tfsdk:"includes_all_repositories"`
 }
 
-// permissionsModel represents the permissions block
+// permissionsModel represents the permissions block.
 type permissionsModel struct {
 	Code      types.String `tfsdk:"code"`
 	Issues    types.String `tfsdk:"issues"`
@@ -93,9 +93,9 @@ func (m *teamResourceModel) from(ctx context.Context, t *forgejo.Team) {
 	}
 }
 
-// readPermissionsFromAPI reads the units_map from API and converts to permissions block
+// readPermissionsFromAPI reads the units_map from API and converts to permissions block.
 func (m *teamResourceModel) readPermissionsFromAPI(ctx context.Context, t *forgejo.Team) {
-	if t.UnitsMap == nil || len(t.UnitsMap) == 0 {
+	if len(t.UnitsMap) == 0 {
 		// No units from API, keep existing permissions (don't change it)
 		return
 	}
@@ -116,7 +116,7 @@ func (m *teamResourceModel) readPermissionsFromAPI(ctx context.Context, t *forge
 	newPerms := permissionsModel{}
 
 	// Define a helper to handle each field
-	handleField := func(apiKey string, stateField, currentField types.String) types.String {
+	handleField := func(apiKey string, currentField types.String) types.String {
 		apiValue := t.UnitsMap[apiKey]
 
 		// If field was null in current state, keep it null
@@ -125,28 +125,29 @@ func (m *teamResourceModel) readPermissionsFromAPI(ctx context.Context, t *forge
 		}
 
 		// Field was set by user, so sync from API
-		if apiValue == "" {
+		switch apiValue {
+		case "":
 			// API doesn't have a value, this shouldn't happen but preserve current
 			return currentField
-		} else if apiValue == "admin" {
+		case "admin":
 			// Downgrade admin to read in granular mode
 			return types.StringValue("read")
-		} else {
+		default:
 			// Use API value as-is (read, write, none)
 			return types.StringValue(apiValue)
 		}
 	}
 
-	newPerms.Code = handleField("repo.code", currentPerms.Code, currentPerms.Code)
-	newPerms.Issues = handleField("repo.issues", currentPerms.Issues, currentPerms.Issues)
-	newPerms.Pulls = handleField("repo.pulls", currentPerms.Pulls, currentPerms.Pulls)
-	newPerms.ExtIssues = handleField("repo.ext_issues", currentPerms.ExtIssues, currentPerms.ExtIssues)
-	newPerms.Wiki = handleField("repo.wiki", currentPerms.Wiki, currentPerms.Wiki)
-	newPerms.ExtWiki = handleField("repo.ext_wiki", currentPerms.ExtWiki, currentPerms.ExtWiki)
-	newPerms.Releases = handleField("repo.releases", currentPerms.Releases, currentPerms.Releases)
-	newPerms.Projects = handleField("repo.projects", currentPerms.Projects, currentPerms.Projects)
-	newPerms.Packages = handleField("repo.packages", currentPerms.Packages, currentPerms.Packages)
-	newPerms.Actions = handleField("repo.actions", currentPerms.Actions, currentPerms.Actions)
+	newPerms.Code = handleField("repo.code", currentPerms.Code)
+	newPerms.Issues = handleField("repo.issues", currentPerms.Issues)
+	newPerms.Pulls = handleField("repo.pulls", currentPerms.Pulls)
+	newPerms.ExtIssues = handleField("repo.ext_issues", currentPerms.ExtIssues)
+	newPerms.Wiki = handleField("repo.wiki", currentPerms.Wiki)
+	newPerms.ExtWiki = handleField("repo.ext_wiki", currentPerms.ExtWiki)
+	newPerms.Releases = handleField("repo.releases", currentPerms.Releases)
+	newPerms.Projects = handleField("repo.projects", currentPerms.Projects)
+	newPerms.Packages = handleField("repo.packages", currentPerms.Packages)
+	newPerms.Actions = handleField("repo.actions", currentPerms.Actions)
 
 	// Convert model to object
 	newPermsObj, d := types.ObjectValueFrom(ctx, permissionsAttrTypes(), newPerms)
@@ -157,7 +158,7 @@ func (m *teamResourceModel) readPermissionsFromAPI(ctx context.Context, t *forge
 	m.Permissions = newPermsObj
 }
 
-// permissionsAttrTypes returns the attribute types for the permissionsModel
+// permissionsAttrTypes returns the attribute types for the permissionsModel.
 func permissionsAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		"code":       types.StringType,
@@ -176,7 +177,7 @@ func permissionsAttrTypes() map[string]attr.Type {
 // buildUnitsMap converts the permissions block to a units_map for the API
 // Behavior depends on is_admin setting:
 // - If is_admin=true: all units set to "admin"
-// - If is_admin=false: use values from permissions block, defaulting unset to "none"
+// - If is_admin=false: use values from permissions block, defaulting unset to "none".
 func (m *teamResourceModel) buildUnitsMap() map[string]string {
 	unitsMap := make(map[string]string)
 
@@ -230,24 +231,24 @@ func (m *teamResourceModel) buildUnitsMap() map[string]string {
 	}
 
 	// Build units from permissions, defaulting null/unset to "none"
-	unitsMap["repo.code"] = permissionsValueOrDefault(perms.Code, "none")
-	unitsMap["repo.issues"] = permissionsValueOrDefault(perms.Issues, "none")
-	unitsMap["repo.pulls"] = permissionsValueOrDefault(perms.Pulls, "none")
-	unitsMap["repo.ext_issues"] = permissionsValueOrDefault(perms.ExtIssues, "none")
-	unitsMap["repo.wiki"] = permissionsValueOrDefault(perms.Wiki, "none")
-	unitsMap["repo.ext_wiki"] = permissionsValueOrDefault(perms.ExtWiki, "none")
-	unitsMap["repo.releases"] = permissionsValueOrDefault(perms.Releases, "none")
-	unitsMap["repo.projects"] = permissionsValueOrDefault(perms.Projects, "none")
-	unitsMap["repo.packages"] = permissionsValueOrDefault(perms.Packages, "none")
-	unitsMap["repo.actions"] = permissionsValueOrDefault(perms.Actions, "none")
+	unitsMap["repo.code"] = permissionsValueOrDefault(perms.Code)
+	unitsMap["repo.issues"] = permissionsValueOrDefault(perms.Issues)
+	unitsMap["repo.pulls"] = permissionsValueOrDefault(perms.Pulls)
+	unitsMap["repo.ext_issues"] = permissionsValueOrDefault(perms.ExtIssues)
+	unitsMap["repo.wiki"] = permissionsValueOrDefault(perms.Wiki)
+	unitsMap["repo.ext_wiki"] = permissionsValueOrDefault(perms.ExtWiki)
+	unitsMap["repo.releases"] = permissionsValueOrDefault(perms.Releases)
+	unitsMap["repo.projects"] = permissionsValueOrDefault(perms.Projects)
+	unitsMap["repo.packages"] = permissionsValueOrDefault(perms.Packages)
+	unitsMap["repo.actions"] = permissionsValueOrDefault(perms.Actions)
 
 	return unitsMap
 }
 
-// permissionsValueOrDefault returns the string value of a types.String, or defaultValue if null/unknown
-func permissionsValueOrDefault(val types.String, defaultValue string) string {
+// permissionsValueOrDefault returns the string value of a types.String, or "none" if null/unknown.
+func permissionsValueOrDefault(val types.String) string {
 	if val.IsNull() || val.IsUnknown() {
-		return defaultValue
+		return "none"
 	}
 	return val.ValueString()
 }
@@ -307,7 +308,7 @@ func (m *teamResourceModel) toEdit(o *forgejo.EditTeamOption) {
 	o.UnitsMap = m.buildUnitsMap()
 }
 
-// validateIsAdmin checks that permissions block is set when is_admin is false
+// validateIsAdmin checks that permissions block is set when is_admin is false.
 func (m *teamResourceModel) validateIsAdmin() string {
 	if m.IsAdmin.IsNull() || m.IsAdmin.IsUnknown() {
 		return "" // is_admin is required, will be caught by schema validation
@@ -322,7 +323,7 @@ func (m *teamResourceModel) validateIsAdmin() string {
 }
 
 // permissionValueOrNull converts an API permission value to a terraform type.String
-// "none" values are converted to null, "admin" is downgraded to "read" in granular mode
+// "none" values are converted to null, "admin" is downgraded to "read" in granular mode.
 func permissionValueOrNull(apiValue string) types.String {
 	if apiValue == "" || apiValue == "none" {
 		return types.StringNull()
@@ -335,9 +336,9 @@ func permissionValueOrNull(apiValue string) types.String {
 
 // derivePermissionsFromAPI derives is_admin and permissions from API response
 // If all units in units_map are "admin", set is_admin=true
-// Otherwise, set is_admin=false and build permissions from units_map
+// Otherwise, set is_admin=false and build permissions from units_map.
 func derivePermissionsFromAPI(m *teamResourceModel, team *forgejo.Team) {
-	if team.UnitsMap == nil || len(team.UnitsMap) == 0 {
+	if len(team.UnitsMap) == 0 {
 		// No units from API, default to granular with no specific permissions
 		m.IsAdmin = types.BoolValue(false)
 		m.Permissions = types.ObjectNull(permissionsAttrTypes())
@@ -541,7 +542,7 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 // ImportState implements resource.ResourceWithImportState.
 // ImportState is called when importing an existing resource.
 // The import ID format is: team_id
-// Example: terraform import forgejo_team.developers 42
+// Example: terraform import forgejo_team.developers 42.
 func (r *teamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import team resource"))
 
@@ -639,11 +640,11 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	tflog.Info(ctx, "Create team", map[string]any{
-		"organization":    data.Organization.ValueString(),
-		"name":            data.Name.ValueString(),
-		"description":     data.Description.ValueString(),
-		"is_admin":        data.IsAdmin.ValueBool(),
-		"permissions":     data.Permissions.String(),
+		"organization":              data.Organization.ValueString(),
+		"name":                      data.Name.ValueString(),
+		"description":               data.Description.ValueString(),
+		"is_admin":                  data.IsAdmin.ValueBool(),
+		"permissions":               data.Permissions.String(),
 		"can_create_org_repo":       data.CanCreateOrgRepo.ValueBool(),
 		"includes_all_repositories": data.IncludesAllRepositories.ValueBool(),
 	})
@@ -772,11 +773,11 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	tflog.Info(ctx, "Update team", map[string]any{
-		"id":            data.ID.ValueInt64(),
-		"name":          data.Name.ValueString(),
-		"description":   data.Description.ValueString(),
-		"is_admin":      data.IsAdmin.ValueBool(),
-		"permissions":   data.Permissions.String(),
+		"id":                        data.ID.ValueInt64(),
+		"name":                      data.Name.ValueString(),
+		"description":               data.Description.ValueString(),
+		"is_admin":                  data.IsAdmin.ValueBool(),
+		"permissions":               data.Permissions.String(),
 		"can_create_org_repo":       data.CanCreateOrgRepo.ValueBool(),
 		"includes_all_repositories": data.IncludesAllRepositories.ValueBool(),
 	})

@@ -46,7 +46,7 @@ func (p *forgejoProvider) Schema(_ context.Context, _ provider.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		MarkdownDescription: `Terraform provider for Forgejo — self-hosted lightweight software forge.
 
-Refer to the project's [README](https://github.com/svalabs/terraform-provider-forgejo#readme)
+Refer to the project's [README](https://github.com/kfkonrad/terraform-provider-forgejo#readme)
 for detailed usage examples and troubleshooting information.`,
 
 		Attributes: map[string]schema.Attribute{

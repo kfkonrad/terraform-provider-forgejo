@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     forgejo = {
-      source = "svalabs/forgejo"
+      source = "kfkonrad/forgejo"
     }
   }
 }
@@ -34,8 +34,8 @@ resource "forgejo_repository" "personal_non_defaults" {
   archived       = true
 
   external_tracker = {
-    external_tracker_url    = "https://github.com/svalabs/terraform-provider-forgejo/issues"
-    external_tracker_format = "https://github.com/svalabs/terraform-provider-forgejo/issues/{index}"
+    external_tracker_url    = "https://github.com/kfkonrad/terraform-provider-forgejo/issues"
+    external_tracker_format = "https://github.com/kfkonrad/terraform-provider-forgejo/issues/{index}"
     external_tracker_style  = "numeric"
   }
 }
@@ -68,8 +68,8 @@ resource "forgejo_repository" "org_non_defaults" {
   archived       = true
 
   external_tracker = {
-    external_tracker_url    = "https://github.com/svalabs/terraform-provider-forgejo/issues"
-    external_tracker_format = "https://github.com/svalabs/terraform-provider-forgejo/issues/{index}"
+    external_tracker_url    = "https://github.com/kfkonrad/terraform-provider-forgejo/issues"
+    external_tracker_format = "https://github.com/kfkonrad/terraform-provider-forgejo/issues/{index}"
     external_tracker_style  = "numeric"
   }
 }
@@ -104,8 +104,8 @@ resource "forgejo_repository" "user_non_defaults" {
   archived       = true
 
   external_tracker = {
-    external_tracker_url    = "https://github.com/svalabs/terraform-provider-forgejo/issues"
-    external_tracker_format = "https://github.com/svalabs/terraform-provider-forgejo/issues/{index}"
+    external_tracker_url    = "https://github.com/kfkonrad/terraform-provider-forgejo/issues"
+    external_tracker_format = "https://github.com/kfkonrad/terraform-provider-forgejo/issues/{index}"
     external_tracker_style  = "numeric"
   }
 }
@@ -113,7 +113,7 @@ resource "forgejo_repository" "user_non_defaults" {
 # Clone repository
 resource "forgejo_repository" "clone" {
   name       = "clone_test_repo"
-  clone_addr = "https://github.com/svalabs/terraform-provider-forgejo"
+  clone_addr = "https://github.com/kfkonrad/terraform-provider-forgejo"
   auth_token = var.test_token # optional
   mirror     = false
 }
@@ -121,7 +121,7 @@ resource "forgejo_repository" "clone" {
 # Pull mirror repository
 resource "forgejo_repository" "mirror" {
   name            = "mirror_test_repo"
-  clone_addr      = "https://github.com/svalabs/terraform-provider-forgejo"
+  clone_addr      = "https://github.com/kfkonrad/terraform-provider-forgejo"
   auth_token      = var.test_token # optional
   mirror          = true
   mirror_interval = "12h0m0s" # optional

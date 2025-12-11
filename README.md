@@ -1,7 +1,7 @@
 # Terraform Provider for Forgejo
 
-![Tests](https://github.com/svalabs/terraform-provider-forgejo/actions/workflows/test.yml/badge.svg)
-![Release](https://github.com/svalabs/terraform-provider-forgejo/actions/workflows/release.yml/badge.svg)
+![Tests](https://github.com/kfkonrad/terraform-provider-forgejo/actions/workflows/test.yml/badge.svg)
+![Release](https://github.com/kfkonrad/terraform-provider-forgejo/actions/workflows/release.yml/badge.svg)
 
 This repository contains a [Terraform](https://www.terraform.io/) and [OpenTofu](https://opentofu.org/) provider for [Forgejo](https://forgejo.org/) — self-hosted lightweight software forge.
 The project is based on the awsome [Forgejo SDK for Go](https://codeberg.org/mvdkleijn/forgejo-sdk) by [Martijn van der Kleijn](https://vanderkleijn.net/).
@@ -14,12 +14,15 @@ It currently provides the following...
 
 Resources:
 
+- `forgejo_access_token` ([documentation](docs/resources/access_token.md))
 - `forgejo_collaborator` ([documentation](docs/resources/collaborator.md))
 - `forgejo_deploy_key` ([documentation](docs/resources/deploy_key.md))
 - `forgejo_organization` ([documentation](docs/resources/organization.md))
 - `forgejo_organization_action_secret` ([documentation](docs/resources/organization_action_secret.md))
 - `forgejo_repository` ([documentation](docs/resources/repository.md))
 - `forgejo_repository_action_secret` ([documentation](docs/resources/repository_action_secret.md))
+- `forgejo_team` ([documentation](docs/resources/team.md))
+- `forgejo_team_membership` ([documentation](docs/resources/team_membership.md))
 - `forgejo_user` ([documentation](docs/resources/user.md))
 
 Data Sources:
@@ -38,8 +41,8 @@ Import the provider into your Terraform/OpenTofu configuration:
 terraform {
   required_providers {
     forgejo = {
-      source  = "svalabs/forgejo"
-      version = "~> 0.5.0"
+      source  = "kfkonrad/forgejo"
+      version = "~> 0.7.0"
     }
   }
 }
@@ -131,7 +134,7 @@ A **clone repository** can be created like so:
 ```terraform
 resource "forgejo_repository" "clone" {
   name       = "clone_test_repo"
-  clone_addr = "https://github.com/svalabs/terraform-provider-forgejo"
+  clone_addr = "https://github.com/kfkonrad/terraform-provider-forgejo"
   mirror     = false
 }
 ```
@@ -141,7 +144,7 @@ A **pull mirror repository** can be created like so:
 ```terraform
 resource "forgejo_repository" "mirror" {
   name            = "mirror_test_repo"
-  clone_addr      = "https://github.com/svalabs/terraform-provider-forgejo"
+  clone_addr      = "https://github.com/kfkonrad/terraform-provider-forgejo"
   mirror          = true
   mirror_interval = "12h0m0s"
 }

@@ -1004,7 +1004,7 @@ func (r *repositoryResource) Configure(_ context.Context, req resource.Configure
 // ImportState implements resource.ResourceWithImportState.
 // ImportState is called when importing an existing resource.
 // The import ID format is: owner:repo_name
-// Example: terraform import forgejo_repository.my_repo my-org:my-repo
+// Example: terraform import forgejo_repository.my_repo my-org:my-repo.
 func (r *repositoryResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import repository resource"))
 

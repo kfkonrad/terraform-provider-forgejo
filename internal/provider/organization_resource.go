@@ -171,7 +171,7 @@ func (r *organizationResource) Configure(_ context.Context, req resource.Configu
 // ImportState implements resource.ResourceWithImportState.
 // ImportState is called when importing an existing resource.
 // The import ID format is: org_name
-// Example: terraform import forgejo_organization.my_org my-org
+// Example: terraform import forgejo_organization.my_org my-org.
 func (r *organizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import organization resource"))
 
