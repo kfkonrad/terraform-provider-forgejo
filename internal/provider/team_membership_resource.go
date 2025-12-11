@@ -279,18 +279,20 @@ func (r *teamMembershipResource) ImportState(ctx context.Context, req resource.I
 		return
 	}
 
-	teamID, err := strconv.ParseInt(parts[0], 10, 64)
+	teamIDStr := parts[0]
+	username := parts[1]
+
+	// Parse team ID
+	teamID, err := strconv.ParseInt(teamIDStr, 10, 64)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Invalid team ID",
-			fmt.Sprintf("Team ID must be numeric, got: %s", parts[0]),
+			fmt.Sprintf("Team ID must be numeric, got: %s", teamIDStr),
 		)
 		return
 	}
 
-	username := parts[1]
-
-	tflog.Info(ctx, "Verify team member exists", map[string]any{
+	tflog.Info(ctx, "Importing team membership", map[string]any{
 		"team_id":  teamID,
 		"username": username,
 	})
@@ -299,15 +301,19 @@ func (r *teamMembershipResource) ImportState(ctx context.Context, req resource.I
 	_, res, err := r.client.GetTeamMember(teamID, username)
 	if err != nil {
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Team member not found - team id: %d, username: %s: %s",
-				teamID,
-				username,
-				err,
-			)
-		default:
+		if res != nil {
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Team member not found - team id: %d, username: %s: %s",
+					teamID,
+					username,
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
+		} else {
 			msg = fmt.Sprintf("Unknown error: %s", err)
 		}
 		resp.Diagnostics.AddError("Unable to verify team member", msg)
@@ -322,6 +328,11 @@ func (r *teamMembershipResource) ImportState(ctx context.Context, req resource.I
 	// Save data into Terraform state
 	diags := resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
+
+	tflog.Info(ctx, "Team membership imported successfully", map[string]any{
+		"team_id":  teamID,
+		"username": username,
+	})
 }
 
 // NewTeamMembershipResource is a helper function to simplify the provider implementation.

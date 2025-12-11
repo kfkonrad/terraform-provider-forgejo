@@ -21,8 +21,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &organizationResource{}
-	_ resource.ResourceWithConfigure = &organizationResource{}
+	_ resource.Resource                = &organizationResource{}
+	_ resource.ResourceWithConfigure   = &organizationResource{}
+	_ resource.ResourceWithImportState = &organizationResource{}
 )
 
 // organizationResource is the resource implementation.
@@ -165,6 +166,64 @@ func (r *organizationResource) Configure(_ context.Context, req resource.Configu
 	}
 
 	r.client = client
+}
+
+// ImportState implements resource.ResourceWithImportState.
+// ImportState is called when importing an existing resource.
+// The import ID format is: org_name
+// Example: terraform import forgejo_organization.my_org my-org
+func (r *organizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	defer un(trace(ctx, "Import organization resource"))
+
+	orgName := req.ID
+
+	tflog.Info(ctx, "Importing organization", map[string]any{
+		"name": orgName,
+	})
+
+	// Fetch the organization from Forgejo API
+	org, res, err := r.client.GetOrg(orgName)
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error fetching organization", map[string]any{
+				"status": res.Status,
+			})
+		}
+
+		var msg string
+		if res != nil {
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf("Organization with name %s not found", orgName)
+			default:
+				msg = fmt.Sprintf("Error fetching organization: %s", err)
+			}
+		} else {
+			msg = fmt.Sprintf("Error fetching organization: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to import organization", msg)
+		return
+	}
+
+	// Initialize state model with fetched data
+	var data organizationResourceModel
+	data.from(org)
+
+	// Note: repo_admin_change_team_access is not returned by the API,
+	// so we'll set it to the default value
+	data.RepoAdminChangeTeamAccess = types.BoolValue(true)
+
+	// Save the imported state
+	diags := resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Info(ctx, "Organization imported successfully", map[string]any{
+		"id":   org.ID,
+		"name": org.UserName,
+	})
 }
 
 // Create creates the resource and sets the initial Terraform state.

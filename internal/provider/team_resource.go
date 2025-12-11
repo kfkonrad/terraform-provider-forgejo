@@ -541,7 +541,7 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 // ImportState implements resource.ResourceWithImportState.
 // ImportState is called when importing an existing resource.
 // The import ID format is: team_id
-// Example: terraform import forgejo_team.developers my-org/42
+// Example: terraform import forgejo_team.developers 42
 func (r *teamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import team resource"))
 
@@ -558,7 +558,7 @@ func (r *teamResource) ImportState(ctx context.Context, req resource.ImportState
 	}
 
 	tflog.Info(ctx, "Importing team", map[string]any{
-		"team_id":      teamID,
+		"team_id": teamID,
 	})
 
 	// Fetch the team from Forgejo API
@@ -587,9 +587,14 @@ func (r *teamResource) ImportState(ctx context.Context, req resource.ImportState
 
 	// Initialize state model with fetched data
 	data := teamResourceModel{
-		ID:           types.Int64Value(team.ID),
-		Name:         types.StringValue(team.Name),
-		Description:  types.StringValue(team.Description),
+		ID:          types.Int64Value(team.ID),
+		Name:        types.StringValue(team.Name),
+		Description: types.StringValue(team.Description),
+	}
+
+	// Set organization if available
+	if team.Organization != nil {
+		data.Organization = types.StringValue(team.Organization.UserName)
 	}
 
 	// Derive is_admin and permissions from API response
@@ -607,11 +612,10 @@ func (r *teamResource) ImportState(ctx context.Context, req resource.ImportState
 	}
 
 	tflog.Info(ctx, "Team imported successfully", map[string]any{
-		"id":            team.ID,
-		"organization":  team.Organization,
-		"name":          team.Name,
-		"is_admin":      data.IsAdmin.ValueBool(),
-		"permissions":   data.Permissions.String(),
+		"id":          team.ID,
+		"name":        team.Name,
+		"is_admin":    data.IsAdmin.ValueBool(),
+		"permissions": data.Permissions.String(),
 	})
 }
 

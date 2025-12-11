@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/boolvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/objectvalidator"
@@ -29,8 +30,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &repositoryResource{}
-	_ resource.ResourceWithConfigure = &repositoryResource{}
+	_ resource.Resource                = &repositoryResource{}
+	_ resource.ResourceWithConfigure   = &repositoryResource{}
+	_ resource.ResourceWithImportState = &repositoryResource{}
 )
 
 // repositoryResource is the resource implementation.
@@ -997,6 +999,83 @@ func (r *repositoryResource) Configure(_ context.Context, req resource.Configure
 	}
 
 	r.client = client
+}
+
+// ImportState implements resource.ResourceWithImportState.
+// ImportState is called when importing an existing resource.
+// The import ID format is: owner:repo_name
+// Example: terraform import forgejo_repository.my_repo my-org:my-repo
+func (r *repositoryResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	defer un(trace(ctx, "Import repository resource"))
+
+	// ID format: owner:repo_name
+	parts := strings.Split(req.ID, ":")
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Invalid import ID",
+			fmt.Sprintf("Expected format: owner:repo_name, got: %s", req.ID),
+		)
+		return
+	}
+
+	owner := parts[0]
+	repoName := parts[1]
+
+	tflog.Info(ctx, "Importing repository", map[string]any{
+		"owner": owner,
+		"name":  repoName,
+	})
+
+	// Fetch the repository from Forgejo API
+	repo, res, err := r.client.GetRepo(owner, repoName)
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error fetching repository", map[string]any{
+				"status": res.Status,
+			})
+		}
+
+		var msg string
+		if res != nil {
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf("Repository with owner %s and name %s not found", owner, repoName)
+			default:
+				msg = fmt.Sprintf("Error fetching repository: %s", err)
+			}
+		} else {
+			msg = fmt.Sprintf("Error fetching repository: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to import repository", msg)
+		return
+	}
+
+	// Initialize state model with fetched data
+	var data repositoryResourceModel
+	data.from(repo)
+
+	// Import nested objects
+	diags := data.permissionsFrom(ctx, repo.Permissions)
+	diags.Append(data.internalTrackerFrom(ctx, repo.InternalTracker)...)
+	diags.Append(data.externalTrackerFrom(ctx, repo.ExternalTracker)...)
+	diags.Append(data.externalWikiFrom(ctx, repo.ExternalWiki)...)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Save the imported state
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tflog.Info(ctx, "Repository imported successfully", map[string]any{
+		"id":    repo.ID,
+		"owner": repo.Owner.UserName,
+		"name":  repo.Name,
+	})
 }
 
 // Create creates the resource and sets the initial Terraform state.
