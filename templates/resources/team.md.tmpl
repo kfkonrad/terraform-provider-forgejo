@@ -9,11 +9,19 @@ description: |-
 
 {{ .Description | trimspace }}
 
-{{ if .HasExample -}}
 ## Example Usage
 
-{{ tffile .ExampleFile }}
-{{- end }}
+### Provider Configuration
+
+{{ tffile "examples/resources/forgejo_team/provider.tf" }}
+
+### Team with Admin Access
+
+{{ tffile "examples/resources/forgejo_team/team_with_admin_access.tf" }}
+
+### Team with Granular Permissions
+
+{{ tffile "examples/resources/forgejo_team/team_with_granular_permissions.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}
 

@@ -121,7 +121,7 @@ func (r *organizationResource) Schema(_ context.Context, _ resource.SchemaReques
 				Default:     stringdefault.StaticString(""),
 			},
 			"visibility": schema.StringAttribute{
-				Description: "Visibility of the organization. Possible values are 'public' (default), 'limited', or 'private'.",
+				Description: "Visibility of the organization. Allowed values: `public` (default), `limited`, `private`.",
 				Optional:    true,
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
@@ -136,7 +136,7 @@ func (r *organizationResource) Schema(_ context.Context, _ resource.SchemaReques
 				},
 			},
 			"repo_admin_change_team_access": schema.BoolAttribute{
-				Description: "Whether repository admin can add and remove access for teams.",
+				Description: "Whether repository admin can add and remove access for teams. Defaults to `true`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),

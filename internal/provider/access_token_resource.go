@@ -59,7 +59,7 @@ func (r *accessTokenResource) Schema(_ context.Context, _ resource.SchemaRequest
 				},
 			},
 			"scopes": schema.ListAttribute{
-				Description: "List of scopes for the access token (e.g., 'repo', 'admin:org_hook').",
+				Description: "List of scopes for the access token. Allowed values: `all`, `public-only`, `sudo`, `read:activitypub`, `write:activitypub`, `read:admin`, `write:admin`, `read:issue`, `write:issue`, `read:misc`, `write:misc`, `read:notification`, `write:notification`, `read:organization`, `write:organization`, `read:package`, `write:package`, `read:repository`, `write:repository`, `read:user`, `write:user`.",
 				ElementType: types.StringType,
 				Optional:    true,
 				PlanModifiers: []planmodifier.List{

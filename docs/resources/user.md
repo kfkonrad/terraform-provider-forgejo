@@ -57,22 +57,22 @@ resource "forgejo_user" "non_defaults" {
 
 ### Optional
 
-- `active` (Boolean) Is the user active?
+- `active` (Boolean) Is the user active? Defaults to `true`.
 - `admin` (Boolean) Is the user an administrator?
-- `allow_create_organization` (Boolean) Allow user to create organizations?
-- `allow_git_hook` (Boolean) Allow user to create Git hooks?
-- `allow_import_local` (Boolean) Allow user to import local repositories?
+- `allow_create_organization` (Boolean) Allow user to create organizations? Defaults to `true`.
+- `allow_git_hook` (Boolean) Allow user to create Git hooks? Defaults to `false`.
+- `allow_import_local` (Boolean) Allow user to import local repositories? Defaults to `false`.
 - `description` (String) Description of the user.
 - `full_name` (String) Full name of the user.
 - `location` (String) Location of the user.
 - `login_name` (String) Login name of the user.
 - `max_repo_creation` (Number) Maximum number of repositories user can create. A value of -1 means no limit.
-- `must_change_password` (Boolean) Require user to change password?
-- `prohibit_login` (Boolean) Are user logins prohibited?
-- `restricted` (Boolean) Is the user restricted?
-- `send_notify` (Boolean) Send notification to administrators?
+- `must_change_password` (Boolean) Require user to change password? Defaults to `true`.
+- `prohibit_login` (Boolean) Are user logins prohibited? Defaults to `false`.
+- `restricted` (Boolean) Is the user restricted? Defaults to `false`.
+- `send_notify` (Boolean) Send notification to administrators? Defaults to `true`.
 - `source_id` (Number) Numeric identifier of the user's authentication source.
-- `visibility` (String) Visibility of the user.
+- `visibility` (String) Visibility of the user. Allowed values: `public` (default), `limited`, `private`.
 - `website` (String) Website of the user.
 
 ### Read-Only

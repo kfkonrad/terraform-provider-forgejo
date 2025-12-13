@@ -64,7 +64,7 @@ func (r *collaboratorResource) Schema(_ context.Context, _ resource.SchemaReques
 				},
 			},
 			"permission": schema.StringAttribute{
-				Description: "Repository permissions of the collaborator. Must be one of 'read', 'write', 'admin'.",
+				Description: "Repository permissions of the collaborator. Allowed values: `read`, `write`, `admin`.",
 				Required:    true,
 				Validators: []validator.String{
 					stringvalidator.OneOf(

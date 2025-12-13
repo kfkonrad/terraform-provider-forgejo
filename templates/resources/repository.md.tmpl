@@ -9,11 +9,27 @@ description: |-
 
 {{ .Description | trimspace }}
 
-{{ if .HasExample -}}
 ## Example Usage
 
-{{ tffile .ExampleFile }}
-{{- end }}
+### Provider Configuration
+
+{{ tffile "examples/resources/forgejo_repository/provider.tf" }}
+
+### Basic Repository
+
+{{ tffile "examples/resources/forgejo_repository/basic_repository.tf" }}
+
+### Repository with Custom Settings
+
+{{ tffile "examples/resources/forgejo_repository/repository_with_custom_settings.tf" }}
+
+### Clone Repository
+
+{{ tffile "examples/resources/forgejo_repository/clone_repository.tf" }}
+
+### Mirror Repository
+
+{{ tffile "examples/resources/forgejo_repository/mirror_repository.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}
 

@@ -201,19 +201,19 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"restricted": schema.BoolAttribute{
-				Description: "Is the user restricted?",
+				Description: "Is the user restricted? Defaults to `false`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 			},
 			"active": schema.BoolAttribute{
-				Description: "Is the user active?",
+				Description: "Is the user active? Defaults to `true`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
 			},
 			"prohibit_login": schema.BoolAttribute{
-				Description: "Are user logins prohibited?",
+				Description: "Are user logins prohibited? Defaults to `false`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -237,7 +237,7 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Default:     stringdefault.StaticString(""),
 			},
 			"visibility": schema.StringAttribute{
-				Description: "Visibility of the user.",
+				Description: "Visibility of the user. Allowed values: `public` (default), `limited`, `private`.",
 				Optional:    true,
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
@@ -269,31 +269,31 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Sensitive:   true,
 			},
 			"must_change_password": schema.BoolAttribute{
-				Description: "Require user to change password?",
+				Description: "Require user to change password? Defaults to `true`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
 			},
 			"send_notify": schema.BoolAttribute{
-				Description: "Send notification to administrators?",
+				Description: "Send notification to administrators? Defaults to `true`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
 			},
 			"allow_git_hook": schema.BoolAttribute{
-				Description: "Allow user to create Git hooks?",
+				Description: "Allow user to create Git hooks? Defaults to `false`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 			},
 			"allow_import_local": schema.BoolAttribute{
-				Description: "Allow user to import local repositories?",
+				Description: "Allow user to import local repositories? Defaults to `false`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 			},
 			"allow_create_organization": schema.BoolAttribute{
-				Description: "Allow user to create organizations?",
+				Description: "Allow user to create organizations? Defaults to `true`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),

@@ -11,6 +11,8 @@ Forgejo organization resource.
 
 ## Example Usage
 
+### Provider Configuration
+
 ```terraform
 terraform {
   required_providers {
@@ -23,19 +25,27 @@ terraform {
 provider "forgejo" {
   host = "http://localhost:3000"
 }
+```
 
+### Basic Organization
+
+```terraform
 # Organization with default settings
-resource "forgejo_organization" "defaults" {
-  name = "test_org_defaults"
+resource "forgejo_organization" "example" {
+  name = "my_organization"
 }
+```
 
+### Organization with Custom Settings
+
+```terraform
 # Organization with custom settings
-resource "forgejo_organization" "non_defaults" {
-  name        = "test_org_non_defaults"
-  full_name   = "Terraform Test Org with non-default attributes"
-  description = "Purely for testing..."
-  website     = "https://forgejo.org/"
-  location    = "Mêlée Island"
+resource "forgejo_organization" "custom" {
+  name        = "custom_org"
+  full_name   = "My Custom Organization"
+  description = "An organization with custom settings"
+  website     = "https://example.com"
+  location    = "San Francisco"
   visibility  = "private"
 }
 ```
@@ -52,8 +62,8 @@ resource "forgejo_organization" "non_defaults" {
 - `description` (String) Description of the organization.
 - `full_name` (String) Full name of the organization.
 - `location` (String) Location of the organization.
-- `repo_admin_change_team_access` (Boolean) Whether repository admin can add and remove access for teams.
-- `visibility` (String) Visibility of the organization. Possible values are 'public' (default), 'limited', or 'private'.
+- `repo_admin_change_team_access` (Boolean) Whether repository admin can add and remove access for teams. Defaults to `true`.
+- `visibility` (String) Visibility of the organization. Allowed values: `public` (default), `limited`, `private`.
 - `website` (String) Website of the organization.
 
 ### Read-Only

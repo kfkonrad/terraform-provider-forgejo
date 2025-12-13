@@ -11,6 +11,8 @@ Forgejo repository resource.
 
 ## Example Usage
 
+### Provider Configuration
+
 ```terraform
 terraform {
   required_providers {
@@ -20,125 +22,80 @@ terraform {
   }
 }
 
-variable "test_password" { sensitive = true }
-variable "test_token" { sensitive = true }
-
 provider "forgejo" {
   host = "http://localhost:3000"
 }
+```
 
-# Personal repository with default settings
-# (owned by the authenticated user)
-resource "forgejo_repository" "personal_defaults" {
-  name = "personal_test_repo_defaults"
+### Basic Repository
+
+```terraform
+# Basic repository with default settings
+resource "forgejo_repository" "example" {
+  name = "my_repository"
 }
+```
 
-# Personal repository with custom settings
-resource "forgejo_repository" "personal_non_defaults" {
-  name           = "personal_test_repo_non_defaults"
-  description    = "Terraform Test Repo owned by user with non-default attributes"
-  website        = "http://localhost:3000"
+### Repository with Custom Settings
+
+```terraform
+# Repository with custom settings
+resource "forgejo_repository" "custom" {
+  name           = "custom_repository"
+  description    = "A repository with custom configuration"
+  website        = "https://example.com"
   private        = true
-  template       = true
-  default_branch = "custom"
+  template       = false
+  default_branch = "main"
   issue_labels   = "Default"
-  auto_init      = false
+  auto_init      = true
   readme         = "Default"
   trust_model    = "collaborator"
-  archived       = true
+  archived       = false
+
+  has_issues        = true
+  has_wiki          = true
+  has_pull_requests = true
+  has_projects      = true
 
   external_tracker = {
-    external_tracker_url    = "https://github.com/kfkonrad/terraform-provider-forgejo/issues"
-    external_tracker_format = "https://github.com/kfkonrad/terraform-provider-forgejo/issues/{index}"
+    external_tracker_url    = "https://github.com/example/repo/issues"
+    external_tracker_format = "https://github.com/example/repo/issues/{index}"
     external_tracker_style  = "numeric"
   }
 }
+```
 
-# Organization
-resource "forgejo_organization" "owner" {
-  name = "test_org"
+### Clone Repository
+
+```terraform
+variable "github_token" {
+  sensitive = true
 }
 
-# Organization repository with default settings
-# (owned by an organization)
-resource "forgejo_repository" "org_defaults" {
-  owner = forgejo_organization.owner.name
-  name  = "org_test_repo_defaults"
-}
-
-# Organization repository with custom settings
-resource "forgejo_repository" "org_non_defaults" {
-  owner          = forgejo_organization.owner.name
-  name           = "org_test_repo_non_defaults"
-  description    = "Terraform Test Repo owned by org with non-default attributes"
-  website        = "http://localhost:3000"
-  private        = true
-  template       = true
-  default_branch = "custom"
-  issue_labels   = "Default"
-  auto_init      = false
-  readme         = "Default"
-  trust_model    = "collaborator"
-  archived       = true
-
-  external_tracker = {
-    external_tracker_url    = "https://github.com/kfkonrad/terraform-provider-forgejo/issues"
-    external_tracker_format = "https://github.com/kfkonrad/terraform-provider-forgejo/issues/{index}"
-    external_tracker_style  = "numeric"
-  }
-}
-
-# User
-resource "forgejo_user" "owner" {
-  login    = "test_user"
-  email    = "test_user@localhost.localdomain"
-  password = var.test_password
-}
-
-# User repository with default settings
-# (owned by a different user)
-resource "forgejo_repository" "user_defaults" {
-  owner = forgejo_user.owner.login
-  name  = "user_test_repo_defaults"
-}
-
-# User repository with custom settings
-resource "forgejo_repository" "user_non_defaults" {
-  owner          = forgejo_user.owner.login
-  name           = "user_test_repo_non_defaults"
-  description    = "Terraform Test Repo owned by user with non-default attributes"
-  website        = "http://localhost:3000"
-  private        = true
-  template       = true
-  default_branch = "custom"
-  issue_labels   = "Default"
-  auto_init      = false
-  readme         = "Default"
-  trust_model    = "collaborator"
-  archived       = true
-
-  external_tracker = {
-    external_tracker_url    = "https://github.com/kfkonrad/terraform-provider-forgejo/issues"
-    external_tracker_format = "https://github.com/kfkonrad/terraform-provider-forgejo/issues/{index}"
-    external_tracker_style  = "numeric"
-  }
-}
-
-# Clone repository
+# Clone an external repository
 resource "forgejo_repository" "clone" {
-  name       = "clone_test_repo"
-  clone_addr = "https://github.com/kfkonrad/terraform-provider-forgejo"
-  auth_token = var.test_token # optional
+  name       = "cloned_repo"
+  clone_addr = "https://github.com/example/repository"
+  auth_token = var.github_token
   mirror     = false
 }
+```
 
-# Pull mirror repository
+### Mirror Repository
+
+```terraform
+variable "github_token" {
+  sensitive = true
+}
+
+# Create a pull mirror repository
 resource "forgejo_repository" "mirror" {
-  name            = "mirror_test_repo"
-  clone_addr      = "https://github.com/kfkonrad/terraform-provider-forgejo"
-  auth_token      = var.test_token # optional
+  name            = "mirrored_repo"
+  clone_addr      = "https://github.com/example/repository"
+  auth_token      = var.github_token
   mirror          = true
-  mirror_interval = "12h0m0s" # optional
+  mirror_interval = "12h0m0s"
 }
 ```
 
@@ -151,45 +108,45 @@ resource "forgejo_repository" "mirror" {
 
 ### Optional
 
-- `allow_manual_merge` (Boolean) Allowed to manually merge pull requests? **Note**: This setting is only effective if `has_pull_requests` is `true`.
-- `allow_merge_commits` (Boolean) Allowed to create merge commit? **Note**: This setting is only effective if `has_pull_requests` is `true`.
-- `allow_rebase` (Boolean) Allowed to rebase then fast-forward? **Note**: This setting is only effective if `has_pull_requests` is `true`.
-- `allow_rebase_explicit` (Boolean) Allowed to rebase then create merge commit? **Note**: This setting is only effective if `has_pull_requests` is `true`.
-- `allow_squash_merge` (Boolean) Allowed to create squash commit? **Note**: This setting is only effective if `has_pull_requests` is `true`.
-- `archived` (Boolean) Is the repository archived?
+- `allow_manual_merge` (Boolean) Allowed to manually merge pull requests? Defaults to `false`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `allow_merge_commits` (Boolean) Allowed to create merge commit? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `allow_rebase` (Boolean) Allowed to rebase then fast-forward? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `allow_rebase_explicit` (Boolean) Allowed to rebase then create merge commit? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `allow_squash_merge` (Boolean) Allowed to create squash commit? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `archived` (Boolean) Is the repository archived? Defaults to `false`.
 - `auth_token` (String, Sensitive) API token for authenticating with migrate / clone URL. **Note**: This setting is only effective if `clone_addr` is set.
-- `auto_init` (Boolean) Whether the repository should be auto-intialized?
-- `autodetect_manual_merge` (Boolean) Auto-detect manual pull request merges? **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `auto_init` (Boolean) Whether the repository should be auto-intialized? Defaults to `true`.
+- `autodetect_manual_merge` (Boolean) Auto-detect manual pull request merges? Defaults to `false`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `clone_addr` (String) Migrate / clone from URL.
 - `default_branch` (String) Default branch of the repository.
-- `default_merge_style` (String) Default merge style of the repository. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `default_merge_style` (String) Default merge style of the repository. Allowed values: `merge` (default), `rebase`, `rebase-merge`, `squash`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `description` (String) Description of the repository.
 - `external_tracker` (Attributes) Settings for external issue tracker. **Note**: This setting is only effective if `has_issues` is `true`. (see [below for nested schema](#nestedatt--external_tracker))
 - `external_wiki` (Attributes) Settings for external wiki. **Note**: This setting is only effective if `has_wiki` is `true`. (see [below for nested schema](#nestedatt--external_wiki))
 - `gitignores` (String) Gitignores to use.
-- `has_actions` (Boolean) Are integrated CI/CD pipelines enabled?
-- `has_issues` (Boolean) Is the repository issue tracker enabled?
-- `has_packages` (Boolean) Is the repository package registry enabled?
-- `has_projects` (Boolean) Are repository projects enabled?
-- `has_pull_requests` (Boolean) Are repository pull requests enabled?
-- `has_releases` (Boolean) Are repository releases enabled?
-- `has_wiki` (Boolean) Is the repository wiki enabled?
-- `ignore_whitespace_conflicts` (Boolean) Are whitespace conflicts ignored? **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `has_actions` (Boolean) Are integrated CI/CD pipelines enabled? Defaults to `true`.
+- `has_issues` (Boolean) Is the repository issue tracker enabled? Defaults to `true`.
+- `has_packages` (Boolean) Is the repository package registry enabled? Defaults to `true`.
+- `has_projects` (Boolean) Are repository projects enabled? Defaults to `true`.
+- `has_pull_requests` (Boolean) Are repository pull requests enabled? Defaults to `true`.
+- `has_releases` (Boolean) Are repository releases enabled? Defaults to `true`.
+- `has_wiki` (Boolean) Is the repository wiki enabled? Defaults to `true`.
+- `ignore_whitespace_conflicts` (Boolean) Are whitespace conflicts ignored? Defaults to `false`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `internal_tracker` (Attributes) Settings for built-in issue tracker. **Note**: This setting is only effective if `has_issues` is `true`. (see [below for nested schema](#nestedatt--internal_tracker))
 - `issue_labels` (String) Issue Label set to use.
-- `labels` (Boolean) Whether to migrate labels. **Note**: This setting is only effective if `clone_addr` is set.
-- `lfs` (Boolean) Whether to migrate LFS files. **Note**: This setting is only effective if `clone_addr` is set.
+- `labels` (Boolean) Whether to migrate labels. Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
+- `lfs` (Boolean) Whether to migrate LFS files. Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
 - `lfs_endpoint` (String) LFS endpoint to use. **Note**: This setting is only effective if `lfs` is `true`.
 - `license` (String) License to use.
-- `milestones` (Boolean) Whether to migrate milestones. **Note**: This setting is only effective if `clone_addr` is set.
-- `mirror` (Boolean) Is the repository a mirror? **Note**: This setting is only effective if `clone_addr` is set.
+- `milestones` (Boolean) Whether to migrate milestones. Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
+- `mirror` (Boolean) Is the repository a mirror? Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
 - `mirror_interval` (String) Mirror interval of the repository. **Note**: This setting is only effective if `mirror` is `true`.
 - `owner` (String) Owner of the repository.
-- `private` (Boolean) Is the repository private?
+- `private` (Boolean) Is the repository private? Defaults to `false`.
 - `readme` (String) Readme of the repository to create.
-- `service` (String) Service to migrate from. **Note**: This setting is only effective if `clone_addr` is set.
-- `template` (Boolean) Is the repository a template?
-- `trust_model` (String) TrustModel of the repository.
+- `service` (String) Service to migrate from. Allowed values: `git`, `github`, `gitlab`, `forgejo`, `gitea`, `gogs`. **Note**: This setting is only effective if `clone_addr` is set.
+- `template` (Boolean) Is the repository a template? Defaults to `false`.
+- `trust_model` (String) TrustModel of the repository. Allowed values: `default` (default), `collaborator`, `committer`, `collaboratorcommitter`.
 - `website` (String) Website of the repository.
 
 ### Read-Only
@@ -226,7 +183,7 @@ Required:
 
 Optional:
 
-- `external_tracker_style` (String) External Issue Tracker Number Format.
+- `external_tracker_style` (String) External Issue Tracker Number Format. Allowed values: `numeric` (default), `alphanumeric`, `regexp`.
 
 
 <a id="nestedatt--external_wiki"></a>
@@ -242,9 +199,9 @@ Required:
 
 Optional:
 
-- `allow_only_contributors_to_track_time` (Boolean) Let only contributors track time?
-- `enable_issue_dependencies` (Boolean) Enable dependencies for issues and pull requests?
-- `enable_time_tracker` (Boolean) Enable time tracking?
+- `allow_only_contributors_to_track_time` (Boolean) Let only contributors track time? Defaults to `true`.
+- `enable_issue_dependencies` (Boolean) Enable dependencies for issues and pull requests? Defaults to `true`.
+- `enable_time_tracker` (Boolean) Enable time tracking? Defaults to `true`.
 
 
 <a id="nestedatt--permissions"></a>

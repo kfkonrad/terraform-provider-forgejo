@@ -441,70 +441,70 @@ func (r *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Repository access levels for the team. Required when is_admin=false. Each key represents a repository unit, with values specifying the access level ('none', 'read', 'write', 'admin'). Omitted keys default to 'none'. Ignored when is_admin=true.",
 				Attributes: map[string]schema.Attribute{
 					"code": schema.StringAttribute{
-						Description: "Access level for code (repo.code).",
+						Description: "Access level for code (repo.code). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"issues": schema.StringAttribute{
-						Description: "Access level for issues (repo.issues).",
+						Description: "Access level for issues (repo.issues). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"pulls": schema.StringAttribute{
-						Description: "Access level for pull requests (repo.pulls).",
+						Description: "Access level for pull requests (repo.pulls). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"ext_issues": schema.StringAttribute{
-						Description: "Access level for external issues (repo.ext_issues).",
+						Description: "Access level for external issues (repo.ext_issues). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"wiki": schema.StringAttribute{
-						Description: "Access level for wiki (repo.wiki).",
+						Description: "Access level for wiki (repo.wiki). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"ext_wiki": schema.StringAttribute{
-						Description: "Access level for external wiki (repo.ext_wiki).",
+						Description: "Access level for external wiki (repo.ext_wiki). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"releases": schema.StringAttribute{
-						Description: "Access level for releases (repo.releases).",
+						Description: "Access level for releases (repo.releases). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"projects": schema.StringAttribute{
-						Description: "Access level for projects (repo.projects).",
+						Description: "Access level for projects (repo.projects). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"packages": schema.StringAttribute{
-						Description: "Access level for packages (repo.packages).",
+						Description: "Access level for packages (repo.packages). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),
 						},
 					},
 					"actions": schema.StringAttribute{
-						Description: "Access level for actions (repo.actions).",
+						Description: "Access level for actions (repo.actions). Allowed values: `none` (default), `read`, `write`, `admin`.",
 						Optional:    true,
 						Validators: []validator.String{
 							stringvalidator.OneOf("none", "read", "write", "admin"),

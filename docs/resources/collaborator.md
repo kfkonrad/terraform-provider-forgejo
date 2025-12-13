@@ -57,7 +57,7 @@ resource "forgejo_collaborator" "admin" {
 
 ### Required
 
-- `permission` (String) Repository permissions of the collaborator. Must be one of 'read', 'write', 'admin'.
+- `permission` (String) Repository permissions of the collaborator. Allowed values: `read`, `write`, `admin`.
 - `repository_id` (Number) Numeric identifier of the repository.
 - `user` (String) Username of the collaborator.
 
