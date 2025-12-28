@@ -289,6 +289,7 @@ func (p *forgejoProvider) DataSources(_ context.Context) []func() datasource.Dat
 		NewDeployKeyDataSource,
 		NewOrganizationDataSource,
 		NewRepositoryDataSource,
+		NewSSHKeyDataSource,
 		NewUserDataSource,
 	}
 }
