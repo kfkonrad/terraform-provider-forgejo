@@ -1420,9 +1420,7 @@ resource "forgejo_organization" "owner" {
 	name = "test_org"
 }
 data "forgejo_repository" "test" {
-	owner = {
-		login = forgejo_organization.owner.name
-	}
+	owner = forgejo_organization.owner.name
 	name  = "tftest"
 }`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -1462,7 +1460,7 @@ data "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("name"), knownvalue.StringExact("tftest")),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("open_issues_count"), knownvalue.Int64Exact(0)),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("open_pr_counter"), knownvalue.Int64Exact(0)),
-					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("owner").AtMapKey("login"), knownvalue.StringExact("test_org")),
+					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("owner"), knownvalue.StringExact("test_org")),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("parent_id"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("permissions"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.forgejo_repository.test", tfjsonpath.New("private"), knownvalue.Bool(false)),
@@ -1487,9 +1485,7 @@ resource "forgejo_repository" "test" {
 	name  = "tftest"
 }
 data "forgejo_repository" "import_test" {
-	owner = {
-		login = forgejo_organization.owner.name
-	}
+	owner = forgejo_organization.owner.name
 	name  = "tftest"
 }
 import {

@@ -43,6 +43,6 @@ resource "forgejo_organization_action_variable" "this" {
 
 ### Required
 
-- `name` (String) Name of the variable.
+- `name` (String) Name of the variable. Must contain only uppercase letters, digits, and underscores, and start with a letter.
 - `organization` (String) Name of the organization.
 - `value` (String) Value of the variable.

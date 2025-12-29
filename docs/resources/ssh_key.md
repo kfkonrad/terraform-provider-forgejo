@@ -59,14 +59,11 @@ resource "forgejo_ssh_key" "this" {
 - `title` (String) Title of the SSH key.
 - `user` (String) Name of the user.
 
-### Optional
-
-- `read_only` (Boolean) Does the key have only read access?
-
 ### Read-Only
 
 - `created_at` (String) Time at which the SSH key was created.
 - `fingerprint` (String) Fingerprint of the SSH key.
 - `key_id` (Number) Numeric identifier of the SSH key.
 - `key_type` (String) Type of the SSH key.
+- `read_only` (Boolean) Does the key have only read access?
 - `url` (String) URL of the SSH key.

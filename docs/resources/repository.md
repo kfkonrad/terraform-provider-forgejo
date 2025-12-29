@@ -142,7 +142,7 @@ resource "forgejo_repository" "mirror" {
 - `milestones` (Boolean) Whether to migrate milestones. Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
 - `mirror` (Boolean) Is the repository a mirror? Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
 - `mirror_interval` (String) Mirror interval of the repository. **Note**: This setting is only effective if `mirror` is `true`.
-- `owner` (String) Owner of the repository.
+- `owner` (String) Owner of the repository (user or organization).
 - `private` (Boolean) Is the repository private? Defaults to `false`.
 - `readme` (String) Readme of the repository to create.
 - `service` (String) Service to migrate from. Allowed values: `git`, `github`, `gitlab`, `forgejo`, `gitea`, `gogs`. **Note**: This setting is only effective if `clone_addr` is set.
