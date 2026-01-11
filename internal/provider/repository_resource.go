@@ -1029,7 +1029,7 @@ func (r *repositoryResource) ImportState(ctx context.Context, req resource.Impor
 	owner := parts[0]
 	repoName := parts[1]
 
-	tflog.Info(ctx, "Importing repository", map[string]any{
+	tflog.Info(ctx, "Read repository", map[string]any{
 		"owner": owner,
 		"name":  repoName,
 	})
@@ -1037,24 +1037,27 @@ func (r *repositoryResource) ImportState(ctx context.Context, req resource.Impor
 	// Fetch the repository from Forgejo API
 	repo, res, err := r.client.GetRepo(owner, repoName)
 	if err != nil {
-		if res != nil {
-			tflog.Error(ctx, "Error fetching repository", map[string]any{
+		var msg string
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
 				"status": res.Status,
 			})
-		}
 
-		var msg string
-		if res != nil {
 			switch res.StatusCode {
 			case 404:
-				msg = fmt.Sprintf("Repository with owner %s and name %s not found", owner, repoName)
+				msg = fmt.Sprintf(
+					"Repository with owner '%s' and name '%s' not found: %s",
+					owner,
+					repoName,
+					err,
+				)
 			default:
-				msg = fmt.Sprintf("Error fetching repository: %s", err)
+				msg = fmt.Sprintf("Unknown error: %s", err)
 			}
-		} else {
-			msg = fmt.Sprintf("Error fetching repository: %s", err)
 		}
-		resp.Diagnostics.AddError("Unable to import repository", msg)
+		resp.Diagnostics.AddError("Unable to read repository", msg)
 		return
 	}
 
@@ -1247,37 +1250,41 @@ func (r *repositoryResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository with owner %s and name %s forbidden: %s",
-				data.Owner.String(),
-				data.Name.String(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository owner with name %s not found: %s",
-				data.Owner.String(),
-				err,
-			)
-		case 409:
-			msg = fmt.Sprintf(
-				"Repository with name %s already exists: %s",
-				data.Name.String(),
-				err,
-			)
-		case 413:
-			msg = fmt.Sprintf("Quota exceeded: %s", err)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository with owner %s and name %s forbidden: %s",
+					data.Owner.String(),
+					data.Name.String(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository owner with name %s not found: %s",
+					data.Owner.String(),
+					err,
+				)
+			case 409:
+				msg = fmt.Sprintf(
+					"Repository with name %s already exists: %s",
+					data.Name.String(),
+					err,
+				)
+			case 413:
+				msg = fmt.Sprintf("Quota exceeded: %s", err)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create repository", msg)
 
@@ -1340,30 +1347,34 @@ func (r *repositoryResource) Create(ctx context.Context, req resource.CreateRequ
 		eopts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository with owner '%s' and name %s forbidden: %s",
-				rep.Owner.UserName,
-				data.Name.String(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner '%s' and name %s not found: %s",
-				rep.Owner.UserName,
-				data.Name.String(),
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository with owner '%s' and name %s forbidden: %s",
+					rep.Owner.UserName,
+					data.Name.String(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner '%s' and name %s not found: %s",
+					rep.Owner.UserName,
+					data.Name.String(),
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update repository", msg)
 
@@ -1527,30 +1538,34 @@ func (r *repositoryResource) Update(ctx context.Context, req resource.UpdateRequ
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository with owner '%s' and name %s forbidden: %s",
-				owner,
-				state.Name.String(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner '%s' and name %s not found: %s",
-				owner,
-				state.Name.String(),
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository with owner '%s' and name %s forbidden: %s",
+					owner,
+					state.Name.String(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner '%s' and name %s not found: %s",
+					owner,
+					state.Name.String(),
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update repository", msg)
 

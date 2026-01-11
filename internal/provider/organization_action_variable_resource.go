@@ -138,28 +138,32 @@ func (r *organizationActionVariableResource) Create(ctx context.Context, req res
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 404:
-			msg = fmt.Sprintf(
-				"Organization with name %s not found: %s",
-				data.Organization.String(),
-				err,
-			)
-		case 409:
-			msg = fmt.Sprintf(
-				"Variable with name %s already exists: %s",
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 404:
+				msg = fmt.Sprintf(
+					"Organization with name %s not found: %s",
+					data.Organization.String(),
+					err,
+				)
+			case 409:
+				msg = fmt.Sprintf(
+					"Variable with name %s already exists: %s",
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create organization action variable", msg)
 
@@ -184,7 +188,7 @@ func (r *organizationActionVariableResource) Read(ctx context.Context, req resou
 		return
 	}
 
-	tflog.Info(ctx, "Get organization action variable", map[string]any{
+	tflog.Info(ctx, "Read organization action variable", map[string]any{
 		"org":  data.Organization.ValueString(),
 		"name": data.Name.ValueString(),
 	})
@@ -195,23 +199,27 @@ func (r *organizationActionVariableResource) Read(ctx context.Context, req resou
 		data.Name.ValueString(),
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Organization action variable with org %s and name %s not found: %s",
-				data.Organization.String(),
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Organization action variable with org %s and name %s not found: %s",
+					data.Organization.String(),
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get organization action variable", msg)
+		resp.Diagnostics.AddError("Unable to read organization action variable", msg)
 
 		return
 	}
@@ -264,22 +272,26 @@ func (r *organizationActionVariableResource) Update(ctx context.Context, req res
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 404:
-			msg = fmt.Sprintf(
-				"Organization with name %s not found: %s",
-				data.Organization.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 404:
+				msg = fmt.Sprintf(
+					"Organization with name %s not found: %s",
+					data.Organization.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update organization action variable", msg)
 
@@ -315,21 +327,25 @@ func (r *organizationActionVariableResource) Delete(ctx context.Context, req res
 		data.Name.ValueString(),
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Organization action variable with org %s and name %s not found: %s",
-				data.Organization.String(),
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Organization action variable with org %s and name %s not found: %s",
+					data.Organization.String(),
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete organization action variable", msg)
 
@@ -361,19 +377,23 @@ func (r *organizationActionVariableResource) ImportState(ctx context.Context, re
 	// Use Forgejo client to get variable
 	variable, res, err := r.client.GetOrgActionVariable(org, name)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Organization action variable with org %s and name %s not found: %s",
-				org, name, err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Organization action variable with org %s and name %s not found: %s",
+					org, name, err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to import organization action variable", msg)
 

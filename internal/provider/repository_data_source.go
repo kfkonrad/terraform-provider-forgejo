@@ -476,7 +476,7 @@ func (d *repositoryDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		return
 	}
 
-	tflog.Info(ctx, "Get repository by name", map[string]any{
+	tflog.Info(ctx, "Read repository", map[string]any{
 		"owner": owner.UserName.ValueString(),
 		"name":  data.Name.ValueString(),
 	})
@@ -487,23 +487,27 @@ func (d *repositoryDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		data.Name.ValueString(),
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner %s and name %s not found: %s",
-				owner.UserName.String(),
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner %s and name %s not found: %s",
+					owner.UserName.String(),
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get repository by name", msg)
+		resp.Diagnostics.AddError("Unable to read repository", msg)
 
 		return
 	}

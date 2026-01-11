@@ -716,29 +716,33 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	tflog.Info(ctx, "Get team by id", map[string]any{
+	tflog.Info(ctx, "Read team", map[string]any{
 		"id": data.ID.ValueInt64(),
 	})
 
 	// Use Forgejo client to get team by ID
 	team, res, err := r.client.GetTeam(data.ID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Team with id %d not found: %s",
-				data.ID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Team with id %d not found: %s",
+					data.ID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get team by id", msg)
+		resp.Diagnostics.AddError("Unable to read team", msg)
 
 		return
 	}
@@ -834,22 +838,26 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	// Use Forgejo client to fetch updated team
 	team, res, err := r.client.GetTeam(data.ID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Team with id %d not found: %s",
-				data.ID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Team with id %d not found: %s",
+					data.ID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get team by id", msg)
+		resp.Diagnostics.AddError("Unable to read team", msg)
 
 		return
 	}
@@ -882,20 +890,24 @@ func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	// Use Forgejo client to delete existing team
 	res, err := r.client.DeleteTeam(data.ID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Team with id %d not found: %s",
-				data.ID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Team with id %d not found: %s",
+					data.ID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete team", msg)
 

@@ -116,29 +116,33 @@ func (r *repositoryActionVariableResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	tflog.Info(ctx, "Get repository by id", map[string]any{
+	tflog.Info(ctx, "Read repository", map[string]any{
 		"id": data.RepositoryID.ValueInt64(),
 	})
 
 	// Use Forgejo client to get repository by id
 	rep, res, err := r.client.GetRepoByID(data.RepositoryID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with id %d not found: %s",
-				data.RepositoryID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with id %d not found: %s",
+					data.RepositoryID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get repository by id", msg)
+		resp.Diagnostics.AddError("Unable to read repository", msg)
 
 		return
 	}
@@ -174,29 +178,33 @@ func (r *repositoryActionVariableResource) Create(ctx context.Context, req resou
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner %s and name %s not found: %s",
-				repo.Owner.String(),
-				repo.Name.String(),
-				err,
-			)
-		case 409:
-			msg = fmt.Sprintf(
-				"Variable with name %s already exists: %s",
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner %s and name %s not found: %s",
+					repo.Owner.String(),
+					repo.Name.String(),
+					err,
+				)
+			case 409:
+				msg = fmt.Sprintf(
+					"Variable with name %s already exists: %s",
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create repository action variable", msg)
 
@@ -224,29 +232,33 @@ func (r *repositoryActionVariableResource) Read(ctx context.Context, req resourc
 		return
 	}
 
-	tflog.Info(ctx, "Get repository by id", map[string]any{
+	tflog.Info(ctx, "Read repository", map[string]any{
 		"id": data.RepositoryID.ValueInt64(),
 	})
 
 	// Use Forgejo client to get repository by id
 	rep, res, err := r.client.GetRepoByID(data.RepositoryID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with id %d not found: %s",
-				data.RepositoryID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with id %d not found: %s",
+					data.RepositoryID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get repository by id", msg)
+		resp.Diagnostics.AddError("Unable to read repository", msg)
 
 		return
 	}
@@ -254,7 +266,7 @@ func (r *repositoryActionVariableResource) Read(ctx context.Context, req resourc
 	// Map response body to model
 	repo.from(rep)
 
-	tflog.Info(ctx, "Get repository action variable", map[string]any{
+	tflog.Info(ctx, "Read repository action variable", map[string]any{
 		"user": repo.Owner.ValueString(),
 		"repo": repo.Name.ValueString(),
 		"name": data.Name.ValueString(),
@@ -267,24 +279,28 @@ func (r *repositoryActionVariableResource) Read(ctx context.Context, req resourc
 		data.Name.ValueString(),
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository action variable with user \"%s\" repo \"%s\" and name %s not found: %s",
-				repo.Owner.ValueString(),
-				repo.Name.ValueString(),
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository action variable with user '%s' repo '%s' and name %s not found: %s",
+					repo.Owner.ValueString(),
+					repo.Name.ValueString(),
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get repository action variable", msg)
+		resp.Diagnostics.AddError("Unable to read repository action variable", msg)
 
 		return
 	}
@@ -313,29 +329,33 @@ func (r *repositoryActionVariableResource) Update(ctx context.Context, req resou
 		return
 	}
 
-	tflog.Info(ctx, "Get repository by id", map[string]any{
+	tflog.Info(ctx, "Read repository", map[string]any{
 		"id": data.RepositoryID.ValueInt64(),
 	})
 
 	// Use Forgejo client to get repository by id
 	rep, res, err := r.client.GetRepoByID(data.RepositoryID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with id %d not found: %s",
-				data.RepositoryID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with id %d not found: %s",
+					data.RepositoryID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get repository by id", msg)
+		resp.Diagnostics.AddError("Unable to read repository", msg)
 
 		return
 	}
@@ -372,23 +392,27 @@ func (r *repositoryActionVariableResource) Update(ctx context.Context, req resou
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner %s and name %s not found: %s",
-				repo.Owner.String(),
-				repo.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner %s and name %s not found: %s",
+					repo.Owner.String(),
+					repo.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update repository action variable", msg)
 
@@ -416,29 +440,33 @@ func (r *repositoryActionVariableResource) Delete(ctx context.Context, req resou
 		return
 	}
 
-	tflog.Info(ctx, "Get repository by id", map[string]any{
+	tflog.Info(ctx, "Read repository", map[string]any{
 		"id": data.RepositoryID.ValueInt64(),
 	})
 
 	// Use Forgejo client to get repository by id
 	rep, res, err := r.client.GetRepoByID(data.RepositoryID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with id %d not found: %s",
-				data.RepositoryID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with id %d not found: %s",
+					data.RepositoryID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get repository by id", msg)
+		resp.Diagnostics.AddError("Unable to read repository", msg)
 
 		return
 	}
@@ -459,22 +487,26 @@ func (r *repositoryActionVariableResource) Delete(ctx context.Context, req resou
 		data.Name.ValueString(),
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository action variable with user \"%s\" repo \"%s\" and name %s not found: %s",
-				repo.Owner.ValueString(),
-				repo.Name.ValueString(),
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository action variable with user '%s' repo '%s' and name %s not found: %s",
+					repo.Owner.ValueString(),
+					repo.Name.ValueString(),
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete repository action variable", msg)
 
@@ -514,19 +546,23 @@ func (r *repositoryActionVariableResource) ImportState(ctx context.Context, req 
 	// Use Forgejo client to get repository by id
 	rep, res, err := r.client.GetRepoByID(repoID)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with id %d not found: %s",
-				repoID, err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with id %d not found: %s",
+					repoID, err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to import repository action variable", msg)
 
@@ -540,19 +576,23 @@ func (r *repositoryActionVariableResource) ImportState(ctx context.Context, req 
 		name,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository action variable with id %d and name %s not found: %s",
-				repoID, name, err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository action variable with id %d and name %s not found: %s",
+					repoID, name, err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to import repository action variable", msg)
 

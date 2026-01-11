@@ -225,26 +225,30 @@ func (r *repositoryTagRuleResource) Create(ctx context.Context, req resource.Cre
 
 	tp, res, err := r.client.CreateTagProtection(owner, repo, opts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository tag rule for %s/%s forbidden: %s",
-				owner, repo, err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository %s/%s not found: %s",
-				owner, repo, err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository tag rule for %s/%s forbidden: %s",
+					owner, repo, err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository %s/%s not found: %s",
+					owner, repo, err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create repository tag rule", msg)
 
@@ -275,7 +279,7 @@ func (r *repositoryTagRuleResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	tflog.Info(ctx, "Get repository tag rule", map[string]any{
+	tflog.Info(ctx, "Read repository tag rule", map[string]any{
 		"owner":   owner,
 		"repo":    repo,
 		"id":      data.ID.ValueInt64(),
@@ -284,18 +288,25 @@ func (r *repositoryTagRuleResource) Read(ctx context.Context, req resource.ReadR
 
 	tp, res, err := r.client.GetTagProtection(owner, repo, data.ID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
+		var msg string
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
 
-		if res.StatusCode == 404 {
-			resp.State.RemoveResource(ctx)
-			return
+			if res.StatusCode == 404 {
+				resp.State.RemoveResource(ctx)
+				return
+			}
+
+			msg = fmt.Sprintf("Unknown error: %s", err)
 		}
 
 		resp.Diagnostics.AddError(
-			"Unable to get repository tag rule",
-			fmt.Sprintf("Unknown error: %s", err),
+			"Unable to read repository tag rule",
+			msg,
 		)
 
 		return
@@ -340,26 +351,30 @@ func (r *repositoryTagRuleResource) Update(ctx context.Context, req resource.Upd
 
 	tp, res, err := r.client.EditTagProtection(owner, repo, data.ID.ValueInt64(), opts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository tag rule for %s/%s id %d forbidden: %s",
-				owner, repo, data.ID.ValueInt64(), err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository tag rule for %s/%s id %d not found: %s",
-				owner, repo, data.ID.ValueInt64(), err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository tag rule for %s/%s id %d forbidden: %s",
+					owner, repo, data.ID.ValueInt64(), err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository tag rule for %s/%s id %d not found: %s",
+					owner, repo, data.ID.ValueInt64(), err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update repository tag rule", msg)
 
@@ -399,24 +414,28 @@ func (r *repositoryTagRuleResource) Delete(ctx context.Context, req resource.Del
 
 	res, err := r.client.DeleteTagProtection(owner, repo, data.ID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository tag rule for %s/%s id %d forbidden: %s",
-				owner, repo, data.ID.ValueInt64(), err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository tag rule for %s/%s id %d not found: %s",
-				owner, repo, data.ID.ValueInt64(), err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository tag rule for %s/%s id %d forbidden: %s",
+					owner, repo, data.ID.ValueInt64(), err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository tag rule for %s/%s id %d not found: %s",
+					owner, repo, data.ID.ValueInt64(), err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete repository tag rule", msg)
 
@@ -459,19 +478,23 @@ func (r *repositoryTagRuleResource) ImportState(ctx context.Context, req resourc
 
 	tp, res, err := r.client.GetTagProtection(owner, repo, id)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository tag rule for %s/%s id %d not found: %s",
-				owner, repo, id, err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository tag rule for %s/%s id %d not found: %s",
+					owner, repo, id, err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to import repository tag rule", msg)
 

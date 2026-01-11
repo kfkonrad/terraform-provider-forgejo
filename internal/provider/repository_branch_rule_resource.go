@@ -477,26 +477,30 @@ func (r *repositoryBranchRuleResource) Create(ctx context.Context, req resource.
 
 	bp, res, err := r.client.CreateBranchProtection(owner, repo, opts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository branch rule for %s/%s forbidden: %s",
-				owner, repo, err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository %s/%s not found: %s",
-				owner, repo, err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository branch rule for %s/%s forbidden: %s",
+					owner, repo, err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository %s/%s not found: %s",
+					owner, repo, err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create repository branch rule", msg)
 
@@ -527,7 +531,7 @@ func (r *repositoryBranchRuleResource) Read(ctx context.Context, req resource.Re
 		return
 	}
 
-	tflog.Info(ctx, "Get repository branch rule", map[string]any{
+	tflog.Info(ctx, "Read repository branch rule", map[string]any{
 		"owner":   owner,
 		"repo":    repo,
 		"pattern": data.ProtectedBranchPattern.ValueString(),
@@ -535,18 +539,25 @@ func (r *repositoryBranchRuleResource) Read(ctx context.Context, req resource.Re
 
 	bp, res, err := r.client.GetBranchProtection(owner, repo, data.ProtectedBranchPattern.ValueString())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
+		var msg string
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
 
-		if res.StatusCode == 404 {
-			resp.State.RemoveResource(ctx)
-			return
+			if res.StatusCode == 404 {
+				resp.State.RemoveResource(ctx)
+				return
+			}
+
+			msg = fmt.Sprintf("Unknown error: %s", err)
 		}
 
 		resp.Diagnostics.AddError(
-			"Unable to get repository branch rule",
-			fmt.Sprintf("Unknown error: %s", err),
+			"Unable to read repository branch rule",
+			msg,
 		)
 
 		return
@@ -590,26 +601,30 @@ func (r *repositoryBranchRuleResource) Update(ctx context.Context, req resource.
 
 	bp, res, err := r.client.EditBranchProtection(owner, repo, data.ProtectedBranchPattern.ValueString(), opts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository branch rule for %s/%s pattern %s forbidden: %s",
-				owner, repo, data.ProtectedBranchPattern.ValueString(), err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository branch rule for %s/%s pattern %s not found: %s",
-				owner, repo, data.ProtectedBranchPattern.ValueString(), err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository branch rule for %s/%s pattern %s forbidden: %s",
+					owner, repo, data.ProtectedBranchPattern.ValueString(), err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository branch rule for %s/%s pattern %s not found: %s",
+					owner, repo, data.ProtectedBranchPattern.ValueString(), err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update repository branch rule", msg)
 
@@ -648,24 +663,28 @@ func (r *repositoryBranchRuleResource) Delete(ctx context.Context, req resource.
 
 	res, err := r.client.DeleteBranchProtection(owner, repo, data.ProtectedBranchPattern.ValueString())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository branch rule for %s/%s pattern %s forbidden: %s",
-				owner, repo, data.ProtectedBranchPattern.ValueString(), err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository branch rule for %s/%s pattern %s not found: %s",
-				owner, repo, data.ProtectedBranchPattern.ValueString(), err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository branch rule for %s/%s pattern %s forbidden: %s",
+					owner, repo, data.ProtectedBranchPattern.ValueString(), err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository branch rule for %s/%s pattern %s not found: %s",
+					owner, repo, data.ProtectedBranchPattern.ValueString(), err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete repository branch rule", msg)
 
@@ -700,19 +719,23 @@ func (r *repositoryBranchRuleResource) ImportState(ctx context.Context, req reso
 
 	bp, res, err := r.client.GetBranchProtection(owner, repo, pattern)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository branch rule for %s/%s pattern %s not found: %s",
-				owner, repo, pattern, err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository branch rule for %s/%s pattern %s not found: %s",
+					owner, repo, pattern, err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to import repository branch rule", msg)
 

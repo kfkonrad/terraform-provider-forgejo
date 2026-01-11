@@ -171,22 +171,26 @@ func (r *accessTokenResource) Create(ctx context.Context, req resource.CreateReq
 	// Use Forgejo client to create access token
 	token, res, err := r.client.CreateAccessToken(username, opt)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Invalid token configuration: %s", err)
-		case 403:
-			msg = fmt.Sprintf("Forbidden: insufficient permissions to create access token: %s", err)
-		case 404:
-			msg = fmt.Sprintf("User not found: %s", err)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Invalid token configuration: %s", err)
+			case 403:
+				msg = fmt.Sprintf("Forbidden: insufficient permissions to create access token: %s", err)
+			case 404:
+				msg = fmt.Sprintf("User not found: %s", err)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create access token", msg)
 
@@ -216,7 +220,7 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 
 	tokenID := data.ID.ValueInt64()
 
-	tflog.Info(ctx, "Get access token", map[string]any{
+	tflog.Info(ctx, "Read access token", map[string]any{
 		"id": tokenID,
 	})
 
@@ -227,18 +231,22 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 	// Use Forgejo client to list tokens for the specified user
 	tokens, res, err := r.client.ListAccessTokens(username, listOpts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 401:
-			msg = fmt.Sprintf("Unauthorized: authentication required to list access tokens: %s", err)
-		case 403:
-			msg = fmt.Sprintf("Forbidden: insufficient permissions to list access tokens: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 401:
+				msg = fmt.Sprintf("Unauthorized: authentication required to list access tokens: %s", err)
+			case 403:
+				msg = fmt.Sprintf("Forbidden: insufficient permissions to list access tokens: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to list access tokens", msg)
 
@@ -315,22 +323,26 @@ func (r *accessTokenResource) Delete(ctx context.Context, req resource.DeleteReq
 	// Use Forgejo client to delete access token
 	res, err := r.client.DeleteAccessToken(username, tokenID)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 401:
-			msg = fmt.Sprintf("Unauthorized: authentication required to delete access token: %s", err)
-		case 403:
-			msg = fmt.Sprintf("Forbidden: insufficient permissions to delete access token: %s", err)
-		case 404:
-			msg = fmt.Sprintf("Access token not found: %s", err)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 401:
+				msg = fmt.Sprintf("Unauthorized: authentication required to delete access token: %s", err)
+			case 403:
+				msg = fmt.Sprintf("Forbidden: insufficient permissions to delete access token: %s", err)
+			case 404:
+				msg = fmt.Sprintf("Access token not found: %s", err)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete access token", msg)
 

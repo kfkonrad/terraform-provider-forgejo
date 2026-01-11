@@ -103,7 +103,7 @@ func (r *teamMembershipResource) Create(ctx context.Context, req resource.Create
 	teamID := data.TeamID.ValueInt64()
 	username := data.Username.ValueString()
 
-	tflog.Info(ctx, "Add user to team", map[string]any{
+	tflog.Info(ctx, "Create team membership", map[string]any{
 		"team_id":  teamID,
 		"username": username,
 	})
@@ -111,32 +111,36 @@ func (r *teamMembershipResource) Create(ctx context.Context, req resource.Create
 	// Use Forgejo client to add user to team
 	res, err := r.client.AddTeamMember(teamID, username)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"User %s cannot be added to team %d (forbidden): %s",
-				username,
-				teamID,
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Team with id %d or user %s not found: %s",
-				teamID,
-				username,
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"User %s cannot be added to team %d (forbidden): %s",
+					username,
+					teamID,
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Team with id %d or user %s not found: %s",
+					teamID,
+					username,
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to add user to team", msg)
+		resp.Diagnostics.AddError("Unable to create team membership", msg)
 
 		return
 	}
@@ -162,7 +166,7 @@ func (r *teamMembershipResource) Read(ctx context.Context, req resource.ReadRequ
 	teamID := data.TeamID.ValueInt64()
 	username := data.Username.ValueString()
 
-	tflog.Info(ctx, "Get team member", map[string]any{
+	tflog.Info(ctx, "Read team membership", map[string]any{
 		"team_id":  teamID,
 		"username": username,
 	})
@@ -170,18 +174,23 @@ func (r *teamMembershipResource) Read(ctx context.Context, req resource.ReadRequ
 	// Use Forgejo client to get team member
 	_, res, err := r.client.GetTeamMember(teamID, username)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
+		var msg string
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
 
-		if res.StatusCode == 404 {
-			// Resource doesn't exist anymore, remove from state
-			resp.State.RemoveResource(ctx)
-			return
+			if res.StatusCode == 404 {
+				// Resource doesn't exist anymore, remove from state
+				resp.State.RemoveResource(ctx)
+				return
+			}
+
+			msg = fmt.Sprintf("Unknown error: %s", err)
 		}
-
-		msg := fmt.Sprintf("Unknown error: %s", err)
-		resp.Diagnostics.AddError("Unable to get team member", msg)
+		resp.Diagnostics.AddError("Unable to read team membership", msg)
 
 		return
 	}
@@ -218,7 +227,7 @@ func (r *teamMembershipResource) Delete(ctx context.Context, req resource.Delete
 	teamID := data.TeamID.ValueInt64()
 	username := data.Username.ValueString()
 
-	tflog.Info(ctx, "Remove user from team", map[string]any{
+	tflog.Info(ctx, "Delete team membership", map[string]any{
 		"team_id":  teamID,
 		"username": username,
 	})
@@ -226,32 +235,36 @@ func (r *teamMembershipResource) Delete(ctx context.Context, req resource.Delete
 	// Use Forgejo client to remove user from team
 	res, err := r.client.RemoveTeamMember(teamID, username)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"User %s cannot be removed from team %d (forbidden): %s",
-				username,
-				teamID,
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Team member not found - team id: %d, username: %s: %s",
-				teamID,
-				username,
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"User %s cannot be removed from team %d (forbidden): %s",
+					username,
+					teamID,
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Team member not found - team id: %d, username: %s: %s",
+					teamID,
+					username,
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to remove user from team", msg)
+		resp.Diagnostics.AddError("Unable to delete team membership", msg)
 
 		return
 	}

@@ -182,23 +182,27 @@ func (r *repositoryActionSecretResource) Create(ctx context.Context, req resourc
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner %s and name %s not found: %s",
-				repo.Owner.String(),
-				repo.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner %s and name %s not found: %s",
+					repo.Owner.String(),
+					repo.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create repository action secret", msg)
 
@@ -367,23 +371,27 @@ func (r *repositoryActionSecretResource) Update(ctx context.Context, req resourc
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner %s and name %s not found: %s",
-				repo.Owner.String(),
-				repo.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner %s and name %s not found: %s",
+					repo.Owner.String(),
+					repo.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update repository action secret", msg)
 
@@ -491,22 +499,26 @@ func (r *repositoryActionSecretResource) getSecret(ctx context.Context, owner, r
 		forgejo.ListRepoActionSecretOption{},
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var diags diag.Diagnostics
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository action secrets with user \"%s\" and repo \"%s\" not found: %s",
-				owner,
-				repoName,
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository action secrets with user '%s' and repo '%s' not found: %s",
+					owner,
+					repoName,
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		diags.AddError("Unable to list repository action secrets", msg)
 
@@ -520,9 +532,9 @@ func (r *repositoryActionSecretResource) getSecret(ctx context.Context, owner, r
 	if idx == -1 {
 		var diags diag.Diagnostics
 		diags.AddError(
-			"Unable to get repository action secret by name",
+			"Unable to find repository action secret by name",
 			fmt.Sprintf(
-				"Repository action secret with user \"%s\" repo \"%s\" and name %s not found.",
+				"Repository action secret with user '%s' repo '%s' and name %s not found.",
 				owner,
 				repoName,
 				data.Name.String(),
