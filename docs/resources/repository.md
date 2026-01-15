@@ -113,6 +113,7 @@ resource "forgejo_repository" "mirror" {
 - `allow_rebase` (Boolean) Allowed to rebase then fast-forward? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `allow_rebase_explicit` (Boolean) Allowed to rebase then create merge commit? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `allow_squash_merge` (Boolean) Allowed to create squash commit? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `archive_on_destroy` (Boolean) Archive the repo instead of delete?
 - `archived` (Boolean) Is the repository archived? Defaults to `false`.
 - `auth_token` (String, Sensitive) API token for authenticating with migrate / clone URL. **Note**: This setting is only effective if `clone_addr` is set.
 - `auto_init` (Boolean) Whether the repository should be auto-intialized? Defaults to `true`.
