@@ -800,6 +800,7 @@ func (r *repositoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				Default:     stringdefault.StaticString("merge"),
 				Validators: []validator.String{
 					stringvalidator.OneOf(
+						"fast-forward-only",
 						"merge",
 						"rebase",
 						"rebase-merge",
