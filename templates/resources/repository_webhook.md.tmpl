@@ -1,0 +1,63 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}} ({{.Name}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+### Provider Configuration
+
+{{ tffile "examples/resources/forgejo_repository_webhook/provider.tf" }}
+
+### Basic Webhook
+
+{{ tffile "examples/resources/forgejo_repository_webhook/basic_webhook.tf" }}
+
+### Chat Webhooks (Slack & Discord)
+
+{{ tffile "examples/resources/forgejo_repository_webhook/chat_webhooks.tf" }}
+
+### Advanced Webhooks (Security & Customization)
+
+{{ tffile "examples/resources/forgejo_repository_webhook/advanced_webhooks.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Repository webhooks can be imported using the repository owner, repository name, and webhook ID in the format `owner:repo:webhook_id`.
+
+```shell
+terraform import forgejo_repository_webhook.my_webhook my-org:my-repo:123
+```
+
+To find the webhook ID, you can:
+1. List webhooks via the Forgejo API: `GET /api/v1/repos/{owner}/{repo}/hooks`
+2. Check the repository webhook settings in the Forgejo web interface
+3. Use the Forgejo API directly with tools like `curl`:
+
+```bash
+# List all webhooks for a repository
+curl -H "Authorization: token YOUR_TOKEN" \
+     https://your-forgejo.com/api/v1/repos/my-org/my-repo/hooks
+```
+
+**Note:** The repository must exist before importing a webhook. When importing, Terraform will need access to the repository via the configured provider authentication.
+
+### Import Examples
+
+**Personal repository webhook:**
+```shell
+terraform import forgejo_repository_webhook.personal_webhook my-username:my-repo:456
+```
+
+**Organization repository webhook:**
+```shell
+terraform import forgejo_repository_webhook.org_webhook my-org:project-repo:789
+```

@@ -21,6 +21,7 @@ Resources:
 - `forgejo_organization_action_secret` ([documentation](docs/resources/organization_action_secret.md))
 - `forgejo_repository` ([documentation](docs/resources/repository.md))
 - `forgejo_repository_action_secret` ([documentation](docs/resources/repository_action_secret.md))
+- `forgejo_repository_webhook` ([documentation](docs/resources/repository_webhook.md))
 - `forgejo_team` ([documentation](docs/resources/team.md))
 - `forgejo_team_membership` ([documentation](docs/resources/team_membership.md))
 - `forgejo_user` ([documentation](docs/resources/user.md))
