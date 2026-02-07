@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -89,8 +90,8 @@ func (m *repositoryBranchRuleResourceModel) from(bp *forgejo.BranchProtection, r
 	m.BlockOnOutdatedBranch = types.BoolValue(bp.BlockOnOutdatedBranch)
 	m.ProtectedFilePatterns = types.StringValue(bp.ProtectedFilePatterns)
 	m.UnprotectedFilePatterns = types.StringValue(bp.UnprotectedFilePatterns)
-	m.CreatedAt = types.StringValue(bp.Created.String())
-	m.UpdatedAt = types.StringValue(bp.Updated.String())
+	m.CreatedAt = types.StringValue(bp.Created.Format(time.RFC3339))
+	m.UpdatedAt = types.StringValue(bp.Updated.Format(time.RFC3339))
 }
 
 // toCreateOption converts the Terraform model to Forgejo CreateBranchProtectionOption.

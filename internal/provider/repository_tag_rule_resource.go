@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -48,8 +49,8 @@ func (m *repositoryTagRuleResourceModel) from(tp *forgejo.TagProtection, reposit
 	m.ProtectedTagPattern = types.StringValue(tp.NamePattern)
 	m.WhitelistUsernames = stringSliceToSet(tp.WhitelistUsernames)
 	m.WhitelistTeams = stringSliceToSet(tp.WhitelistTeams)
-	m.CreatedAt = types.StringValue(tp.Created.String())
-	m.UpdatedAt = types.StringValue(tp.Updated.String())
+	m.CreatedAt = types.StringValue(tp.Created.Format(time.RFC3339))
+	m.UpdatedAt = types.StringValue(tp.Updated.Format(time.RFC3339))
 }
 
 // toCreateOption converts the Terraform model to Forgejo CreateTagProtectionOption.

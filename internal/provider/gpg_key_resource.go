@@ -248,16 +248,10 @@ func (r *gpgKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"created_at": schema.StringAttribute{
 				Description: "Time at which the GPG key was created.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"expires_at": schema.StringAttribute{
 				Description: "Time at which the GPG key expires.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"emails": schema.ListAttribute{
 				Description: "Emails associated with the GPG key.",

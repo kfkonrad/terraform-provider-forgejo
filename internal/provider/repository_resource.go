@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/boolvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/objectvalidator"
@@ -150,8 +151,8 @@ func (m *repositoryResourceModel) from(r *forgejo.Repository) {
 		m.Archived = types.BoolValue(r.Archived)
 	}
 
-	m.Created = types.StringValue(r.Created.String())
-	m.Updated = types.StringValue(r.Updated.String())
+	m.Created = types.StringValue(r.Created.Format(time.RFC3339))
+	m.Updated = types.StringValue(r.Updated.Format(time.RFC3339))
 	m.HasIssues = types.BoolValue(r.HasIssues)
 	m.HasWiki = types.BoolValue(r.HasWiki)
 	m.HasPullRequests = types.BoolValue(r.HasPullRequests)
@@ -162,7 +163,7 @@ func (m *repositoryResourceModel) from(r *forgejo.Repository) {
 	m.AvatarURL = types.StringValue(r.AvatarURL)
 	m.Internal = types.BoolValue(r.Internal)
 	m.MirrorInterval = types.StringValue(r.MirrorInterval)
-	m.MirrorUpdated = types.StringValue(r.MirrorUpdated.String())
+	m.MirrorUpdated = types.StringValue(r.MirrorUpdated.Format(time.RFC3339))
 
 	if m.HasPullRequests.ValueBool() {
 		// only update PR settings if PRs are enabled
@@ -591,9 +592,6 @@ func (r *repositoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"created_at": schema.StringAttribute{
 				Description: "Time at which the repository was created.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"updated_at": schema.StringAttribute{
 				Description: "Time at which the repository was updated.",

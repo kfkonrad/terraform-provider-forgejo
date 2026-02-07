@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -218,7 +219,7 @@ func (d *sshKeyDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	data.URL = types.StringValue(key.URL)
 	data.Title = types.StringValue(key.Title)
 	data.Fingerprint = types.StringValue(key.Fingerprint)
-	data.Created = types.StringValue(key.Created.String())
+	data.Created = types.StringValue(key.Created.Format(time.RFC3339))
 	data.ReadOnly = types.BoolValue(key.ReadOnly)
 	data.KeyType = types.StringValue(key.KeyType)
 
