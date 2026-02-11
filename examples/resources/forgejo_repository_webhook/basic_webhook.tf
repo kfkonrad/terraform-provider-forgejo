@@ -20,6 +20,10 @@ resource "forgejo_repository_webhook" "basic" {
   repository = forgejo_repository.example.full_name
   type       = "gitea"
   url        = "https://example.com/webhook"
-  events     = ["push", "pull_request", "issues"]
-  active     = true
+  events {
+    push         = true
+    pull_request = true
+    issues       = true
+  }
+  active = true
 }

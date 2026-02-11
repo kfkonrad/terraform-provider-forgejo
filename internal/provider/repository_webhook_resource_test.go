@@ -26,7 +26,10 @@ resource "forgejo_repository_webhook" "test" {
 	repository = forgejo_repository.test.full_name
 	type       = "gitea"
 	url        = "http://example.com/webhook"
-	events     = ["push", "pull_request"]
+	events {
+		push         = true
+		pull_request = true
+	}
 	active     = true
 }
 `,
@@ -37,10 +40,10 @@ resource "forgejo_repository_webhook" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("type"), knownvalue.StringExact("gitea")),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("url"), knownvalue.StringExact("http://example.com/webhook")),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("content_type"), knownvalue.StringExact("json")),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.ListSizeExact(2)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("pull_request"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("issues"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("active"), knownvalue.Bool(true)),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("created_at"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("updated_at"), knownvalue.NotNull()),
 				},
 			},
 			// Update testing - change events and active status
@@ -53,13 +56,19 @@ resource "forgejo_repository_webhook" "test" {
 	repository = forgejo_repository.test.full_name
 	type       = "gitea"
 	url        = "http://example.com/webhook"
-	events     = ["push", "pull_request", "issues"]
-	active     = false
+	events {
+		push         = true
+		pull_request = true
+		issues       = true
+	}
+	active        = false
 	branch_filter = "main/*"
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.ListSizeExact(3)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("pull_request"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("issues"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("active"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("branch_filter"), knownvalue.StringExact("main/*")),
 				},
@@ -74,7 +83,11 @@ resource "forgejo_repository_webhook" "test" {
 	repository           = forgejo_repository.test.full_name
 	type                 = "gitea"
 	url                  = "http://example.com/webhook"
-	events               = ["push", "pull_request", "issues"]
+	events {
+		push         = true
+		pull_request = true
+		issues       = true
+	}
 	active               = true
 	secret               = "mysecret123"
 	authorization_header = "Bearer token123"
@@ -119,7 +132,10 @@ resource "forgejo_repository_webhook" "test" {
 	repository = forgejo_repository.test.full_name
 	type       = "slack"
 	url        = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-	events     = ["push", "pull_request"]
+	events {
+		push         = true
+		pull_request = true
+	}
 	active     = true
 	config = {
 		channel = "#general"
@@ -134,7 +150,8 @@ resource "forgejo_repository_webhook" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("owner"), knownvalue.StringExact("tfadmin")),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("type"), knownvalue.StringExact("slack")),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("url"), knownvalue.StringExact("https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX")),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.ListSizeExact(2)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("pull_request"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("active"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("config"), knownvalue.NotNull()),
 				},
@@ -158,14 +175,16 @@ resource "forgejo_repository_webhook" "test" {
 	repository = forgejo_repository.test.full_name
 	type       = "discord"
 	url        = "https://discord.com/api/webhooks/1234567890/ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	events     = ["push"]
-	active     = true
+	events {
+		push = true
+	}
+	active       = true
 	content_type = "json"
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("type"), knownvalue.StringExact("discord")),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("content_type"), knownvalue.StringExact("json")),
 				},
 			},
@@ -188,7 +207,9 @@ resource "forgejo_repository_webhook" "test" {
 	repository    = forgejo_repository.test.full_name
 	type          = "forgejo"
 	url           = "http://example.com/webhook"
-	events        = ["push"]
+	events {
+		push = true
+	}
 	active        = true
 	content_type  = "form"
 }
@@ -196,7 +217,7 @@ resource "forgejo_repository_webhook" "test" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("type"), knownvalue.StringExact("forgejo")),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("content_type"), knownvalue.StringExact("form")),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(true)),
 				},
 			},
 		},
@@ -222,7 +243,10 @@ resource "forgejo_repository_webhook" "test" {
 	repository = forgejo_repository.test.full_name
 	type       = "gitea"
 	url        = "http://example.com/webhook"
-	events     = ["push", "pull_request"]
+	events {
+		push         = true
+		pull_request = true
+	}
 	active     = true
 }
 `,
@@ -230,7 +254,8 @@ resource "forgejo_repository_webhook" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("repository"), knownvalue.StringExact("test-webhook-org/test_repo")),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("owner"), knownvalue.StringExact("test-webhook-org")),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("type"), knownvalue.StringExact("gitea")),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.ListSizeExact(2)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("pull_request"), knownvalue.Bool(true)),
 				},
 			},
 			// Import testing for organization repository
@@ -257,7 +282,7 @@ func TestAccRepositoryWebhookResource_DefaultEvents(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create without specifying events (should default to common events)
+			// Create without specifying events block (all default to false, API creates with no events)
 			{
 				Config: providerConfig + `
 resource "forgejo_repository" "test" {
@@ -270,8 +295,10 @@ resource "forgejo_repository_webhook" "test" {
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.ListSizeExact(4)), // Default events: push, pull_request, issues, release
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("active"), knownvalue.Bool(true)),       // Default active
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("pull_request"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("issues"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("active"), knownvalue.Bool(true)), // Default active
 				},
 			},
 		},
@@ -293,7 +320,9 @@ resource "forgejo_repository_webhook" "test" {
 	repository = forgejo_repository.test.full_name
 	type       = "gitea"
 	url        = "http://example.com/webhook"
-	events     = ["push"]
+	events {
+		push = true
+	}
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -310,7 +339,9 @@ resource "forgejo_repository_webhook" "test" {
 	repository = forgejo_repository.test.full_name
 	type       = "slack"
 	url        = "http://example.com/webhook"
-	events     = ["push"]
+	events {
+		push = true
+	}
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{

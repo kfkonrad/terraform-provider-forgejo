@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -18,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
@@ -46,10 +46,150 @@ type repositoryWebhookResourceModel struct {
 	ContentType         types.String `tfsdk:"content_type"`
 	Secret              types.String `tfsdk:"secret"`
 	AuthorizationHeader types.String `tfsdk:"authorization_header"`
-	Events              types.List   `tfsdk:"events"`
+	Events              types.Object `tfsdk:"events"`
 	Active              types.Bool   `tfsdk:"active"`
 	BranchFilter        types.String `tfsdk:"branch_filter"`
 	Config              types.Map    `tfsdk:"config"`
+}
+
+// webhookEventsModel represents the events block matching Forgejo's HookEvents struct.
+type webhookEventsModel struct {
+	Create                   types.Bool `tfsdk:"create"`
+	Delete                   types.Bool `tfsdk:"delete"`
+	Fork                     types.Bool `tfsdk:"fork"`
+	Push                     types.Bool `tfsdk:"push"`
+	Issues                   types.Bool `tfsdk:"issues"`
+	IssueAssign              types.Bool `tfsdk:"issue_assign"`
+	IssueLabel               types.Bool `tfsdk:"issue_label"`
+	IssueMilestone           types.Bool `tfsdk:"issue_milestone"`
+	IssueComment             types.Bool `tfsdk:"issue_comment"`
+	PullRequest              types.Bool `tfsdk:"pull_request"`
+	PullRequestAssign        types.Bool `tfsdk:"pull_request_assign"`
+	PullRequestLabel         types.Bool `tfsdk:"pull_request_label"`
+	PullRequestMilestone     types.Bool `tfsdk:"pull_request_milestone"`
+	PullRequestComment       types.Bool `tfsdk:"pull_request_comment"`
+	PullRequestReview        types.Bool `tfsdk:"pull_request_review"`
+	PullRequestSync          types.Bool `tfsdk:"pull_request_sync"`
+	PullRequestReviewRequest types.Bool `tfsdk:"pull_request_review_request"`
+	Wiki                     types.Bool `tfsdk:"wiki"`
+	Repository               types.Bool `tfsdk:"repository"`
+	Release                  types.Bool `tfsdk:"release"`
+	Package                  types.Bool `tfsdk:"package"`
+	ActionRunFailure         types.Bool `tfsdk:"action_run_failure"`
+	ActionRunRecover         types.Bool `tfsdk:"action_run_recover"`
+	ActionRunSuccess         types.Bool `tfsdk:"action_run_success"`
+}
+
+// webhookEventsAttrTypes returns the attribute types for the webhookEventsModel.
+func webhookEventsAttrTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"create":                      types.BoolType,
+		"delete":                      types.BoolType,
+		"fork":                        types.BoolType,
+		"push":                        types.BoolType,
+		"issues":                      types.BoolType,
+		"issue_assign":                types.BoolType,
+		"issue_label":                 types.BoolType,
+		"issue_milestone":             types.BoolType,
+		"issue_comment":               types.BoolType,
+		"pull_request":                types.BoolType,
+		"pull_request_assign":         types.BoolType,
+		"pull_request_label":          types.BoolType,
+		"pull_request_milestone":      types.BoolType,
+		"pull_request_comment":        types.BoolType,
+		"pull_request_review":         types.BoolType,
+		"pull_request_sync":           types.BoolType,
+		"pull_request_review_request": types.BoolType,
+		"wiki":                        types.BoolType,
+		"repository":                  types.BoolType,
+		"release":                     types.BoolType,
+		"package":                     types.BoolType,
+		"action_run_failure":          types.BoolType,
+		"action_run_recover":          types.BoolType,
+		"action_run_success":          types.BoolType,
+	}
+}
+
+// eventsModelToStringSlice converts booleans back to API event strings.
+func eventsModelToStringSlice(events *webhookEventsModel) []string {
+	var result []string
+
+	if events.Create.ValueBool() {
+		result = append(result, "create")
+	}
+	if events.Delete.ValueBool() {
+		result = append(result, "delete")
+	}
+	if events.Fork.ValueBool() {
+		result = append(result, "fork")
+	}
+	if events.Push.ValueBool() {
+		result = append(result, "push")
+	}
+	// Use "issues_only" to avoid composite expansion of all issue sub-events.
+	if events.Issues.ValueBool() {
+		result = append(result, "issues_only")
+	}
+	if events.IssueAssign.ValueBool() {
+		result = append(result, "issue_assign")
+	}
+	if events.IssueLabel.ValueBool() {
+		result = append(result, "issue_label")
+	}
+	if events.IssueMilestone.ValueBool() {
+		result = append(result, "issue_milestone")
+	}
+	if events.IssueComment.ValueBool() {
+		result = append(result, "issue_comment")
+	}
+	// Use "pull_request_only" to avoid composite expansion of all PR sub-events.
+	if events.PullRequest.ValueBool() {
+		result = append(result, "pull_request_only")
+	}
+	if events.PullRequestAssign.ValueBool() {
+		result = append(result, "pull_request_assign")
+	}
+	if events.PullRequestLabel.ValueBool() {
+		result = append(result, "pull_request_label")
+	}
+	if events.PullRequestMilestone.ValueBool() {
+		result = append(result, "pull_request_milestone")
+	}
+	if events.PullRequestComment.ValueBool() {
+		result = append(result, "pull_request_comment")
+	}
+	if events.PullRequestReview.ValueBool() {
+		result = append(result, "pull_request_review")
+	}
+	if events.PullRequestSync.ValueBool() {
+		result = append(result, "pull_request_sync")
+	}
+	if events.PullRequestReviewRequest.ValueBool() {
+		result = append(result, "pull_request_review_request")
+	}
+	if events.Wiki.ValueBool() {
+		result = append(result, "wiki")
+	}
+	if events.Repository.ValueBool() {
+		result = append(result, "repository")
+	}
+	if events.Release.ValueBool() {
+		result = append(result, "release")
+	}
+	if events.Package.ValueBool() {
+		result = append(result, "package")
+	}
+	if events.ActionRunFailure.ValueBool() {
+		result = append(result, "action_run_failure")
+	}
+	if events.ActionRunRecover.ValueBool() {
+		result = append(result, "action_run_recover")
+	}
+	if events.ActionRunSuccess.ValueBool() {
+		result = append(result, "action_run_success")
+	}
+
+	return result
 }
 
 // from converts the Forgejo Hook API response to the Terraform model.
@@ -85,20 +225,142 @@ func (m *repositoryWebhookResourceModel) from(hook *forgejo.Hook, repository, ow
 		m.AuthorizationHeader = types.StringNull()
 	}
 
-	// Convert events slice to Terraform list
-	if len(hook.Events) > 0 {
-		eventValues := make([]attr.Value, len(hook.Events))
-		for i, event := range hook.Events {
-			eventValues[i] = types.StringValue(event)
+	// Convert events slice to structured boolean object
+	eventsModel := webhookEventsModel{}
+	for _, event := range hook.Events {
+		switch event {
+		case "create":
+			eventsModel.Create = types.BoolValue(true)
+		case "delete":
+			eventsModel.Delete = types.BoolValue(true)
+		case "fork":
+			eventsModel.Fork = types.BoolValue(true)
+		case "push":
+			eventsModel.Push = types.BoolValue(true)
+		case "issues":
+			eventsModel.Issues = types.BoolValue(true)
+		case "issue_assign":
+			eventsModel.IssueAssign = types.BoolValue(true)
+		case "issue_label":
+			eventsModel.IssueLabel = types.BoolValue(true)
+		case "issue_milestone":
+			eventsModel.IssueMilestone = types.BoolValue(true)
+		case "issue_comment":
+			eventsModel.IssueComment = types.BoolValue(true)
+		case "pull_request":
+			eventsModel.PullRequest = types.BoolValue(true)
+		case "pull_request_assign":
+			eventsModel.PullRequestAssign = types.BoolValue(true)
+		case "pull_request_label":
+			eventsModel.PullRequestLabel = types.BoolValue(true)
+		case "pull_request_milestone":
+			eventsModel.PullRequestMilestone = types.BoolValue(true)
+		case "pull_request_comment":
+			eventsModel.PullRequestComment = types.BoolValue(true)
+		case "pull_request_review", "pull_request_review_approved", "pull_request_review_rejected":
+			eventsModel.PullRequestReview = types.BoolValue(true)
+		case "pull_request_review_comment":
+			eventsModel.PullRequestComment = types.BoolValue(true)
+		case "pull_request_sync":
+			eventsModel.PullRequestSync = types.BoolValue(true)
+		case "pull_request_review_request":
+			eventsModel.PullRequestReviewRequest = types.BoolValue(true)
+		case "wiki":
+			eventsModel.Wiki = types.BoolValue(true)
+		case "repository":
+			eventsModel.Repository = types.BoolValue(true)
+		case "release":
+			eventsModel.Release = types.BoolValue(true)
+		case "package":
+			eventsModel.Package = types.BoolValue(true)
+		case "action_run_failure":
+			eventsModel.ActionRunFailure = types.BoolValue(true)
+		case "action_run_recover":
+			eventsModel.ActionRunRecover = types.BoolValue(true)
+		case "action_run_success":
+			eventsModel.ActionRunSuccess = types.BoolValue(true)
 		}
-		events, diags := types.ListValue(types.StringType, eventValues)
-		if !diags.HasError() {
-			m.Events = events
-		} else {
-			m.Events = types.ListNull(types.StringType)
-		}
+	}
+
+	// Fill in false for any fields not set by the API response
+	if eventsModel.Create.IsNull() {
+		eventsModel.Create = types.BoolValue(false)
+	}
+	if eventsModel.Delete.IsNull() {
+		eventsModel.Delete = types.BoolValue(false)
+	}
+	if eventsModel.Fork.IsNull() {
+		eventsModel.Fork = types.BoolValue(false)
+	}
+	if eventsModel.Push.IsNull() {
+		eventsModel.Push = types.BoolValue(false)
+	}
+	if eventsModel.Issues.IsNull() {
+		eventsModel.Issues = types.BoolValue(false)
+	}
+	if eventsModel.IssueAssign.IsNull() {
+		eventsModel.IssueAssign = types.BoolValue(false)
+	}
+	if eventsModel.IssueLabel.IsNull() {
+		eventsModel.IssueLabel = types.BoolValue(false)
+	}
+	if eventsModel.IssueMilestone.IsNull() {
+		eventsModel.IssueMilestone = types.BoolValue(false)
+	}
+	if eventsModel.IssueComment.IsNull() {
+		eventsModel.IssueComment = types.BoolValue(false)
+	}
+	if eventsModel.PullRequest.IsNull() {
+		eventsModel.PullRequest = types.BoolValue(false)
+	}
+	if eventsModel.PullRequestAssign.IsNull() {
+		eventsModel.PullRequestAssign = types.BoolValue(false)
+	}
+	if eventsModel.PullRequestLabel.IsNull() {
+		eventsModel.PullRequestLabel = types.BoolValue(false)
+	}
+	if eventsModel.PullRequestMilestone.IsNull() {
+		eventsModel.PullRequestMilestone = types.BoolValue(false)
+	}
+	if eventsModel.PullRequestComment.IsNull() {
+		eventsModel.PullRequestComment = types.BoolValue(false)
+	}
+	if eventsModel.PullRequestReview.IsNull() {
+		eventsModel.PullRequestReview = types.BoolValue(false)
+	}
+	if eventsModel.PullRequestSync.IsNull() {
+		eventsModel.PullRequestSync = types.BoolValue(false)
+	}
+	if eventsModel.PullRequestReviewRequest.IsNull() {
+		eventsModel.PullRequestReviewRequest = types.BoolValue(false)
+	}
+	if eventsModel.Wiki.IsNull() {
+		eventsModel.Wiki = types.BoolValue(false)
+	}
+	if eventsModel.Repository.IsNull() {
+		eventsModel.Repository = types.BoolValue(false)
+	}
+	if eventsModel.Release.IsNull() {
+		eventsModel.Release = types.BoolValue(false)
+	}
+	if eventsModel.Package.IsNull() {
+		eventsModel.Package = types.BoolValue(false)
+	}
+	if eventsModel.ActionRunFailure.IsNull() {
+		eventsModel.ActionRunFailure = types.BoolValue(false)
+	}
+	if eventsModel.ActionRunRecover.IsNull() {
+		eventsModel.ActionRunRecover = types.BoolValue(false)
+	}
+	if eventsModel.ActionRunSuccess.IsNull() {
+		eventsModel.ActionRunSuccess = types.BoolValue(false)
+	}
+
+	eventsObj, diags := types.ObjectValueFrom(context.Background(), webhookEventsAttrTypes(), eventsModel)
+	if !diags.HasError() {
+		m.Events = eventsObj
 	} else {
-		m.Events = types.ListNull(types.StringType)
+		m.Events = types.ObjectNull(webhookEventsAttrTypes())
 	}
 
 	// Set config map (excluding the fields we expose as top-level attributes)
@@ -150,17 +412,16 @@ func (m *repositoryWebhookResourceModel) toCreateOption() (*forgejo.CreateHookOp
 		opts.Config["secret"] = m.Secret.ValueString()
 	}
 
-	// Convert events list to slice
+	// Convert events object to string slice
 	if !m.Events.IsNull() && !m.Events.IsUnknown() {
-		var events []string
-		diags := m.Events.ElementsAs(context.Background(), &events, false)
+		var eventsModel webhookEventsModel
+		diags := m.Events.As(context.Background(), &eventsModel, basetypes.ObjectAsOptions{})
 		if diags.HasError() {
 			return nil, diags
 		}
-		opts.Events = events
+		opts.Events = eventsModelToStringSlice(&eventsModel)
 	} else {
-		// Default to common events if none specified
-		opts.Events = []string{"push", "pull_request", "issues", "release"}
+		opts.Events = []string{}
 	}
 
 	// Add additional config values
@@ -208,17 +469,16 @@ func (m *repositoryWebhookResourceModel) toEditOption() (*forgejo.EditHookOption
 		opts.Config["secret"] = m.Secret.ValueString()
 	}
 
-	// Convert events list to slice
+	// Convert events object to string slice
 	if !m.Events.IsNull() && !m.Events.IsUnknown() {
-		var events []string
-		diags := m.Events.ElementsAs(context.Background(), &events, false)
+		var eventsModel webhookEventsModel
+		diags := m.Events.As(context.Background(), &eventsModel, basetypes.ObjectAsOptions{})
 		if diags.HasError() {
 			return nil, diags
 		}
-		opts.Events = events
+		opts.Events = eventsModelToStringSlice(&eventsModel)
 	} else {
-		// Default to common events if none specified
-		opts.Events = []string{"push", "pull_request", "issues", "release"}
+		opts.Events = []string{}
 	}
 
 	// Add additional config values
@@ -328,12 +588,6 @@ func (r *repositoryWebhookResource) Schema(_ context.Context, _ resource.SchemaR
 				Optional:    true,
 				Sensitive:   true,
 			},
-			"events": schema.ListAttribute{
-				Description: "List of events that trigger the webhook. If empty, defaults to common events.",
-				ElementType: types.StringType,
-				Optional:    true,
-				Computed:    true,
-			},
 			"active": schema.BoolAttribute{
 				Description: "Whether the webhook is active. Defaults to `true`.",
 				Optional:    true,
@@ -349,6 +603,157 @@ func (r *repositoryWebhookResource) Schema(_ context.Context, _ resource.SchemaR
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"events": schema.SingleNestedBlock{
+				Description: "Events that trigger the webhook. Each field corresponds to a Forgejo webhook event type. All fields default to `false`.",
+				Attributes: map[string]schema.Attribute{
+					"create": schema.BoolAttribute{
+						Description: "Trigger on repository/tag creation.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"delete": schema.BoolAttribute{
+						Description: "Trigger on branch/tag deletion.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"fork": schema.BoolAttribute{
+						Description: "Trigger on repository fork.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"push": schema.BoolAttribute{
+						Description: "Trigger on push to repository.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"issues": schema.BoolAttribute{
+						Description: "Trigger on issue open/close/reopen/edit.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"issue_assign": schema.BoolAttribute{
+						Description: "Trigger on issue assignment/unassignment.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"issue_label": schema.BoolAttribute{
+						Description: "Trigger on issue label added/removed.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"issue_milestone": schema.BoolAttribute{
+						Description: "Trigger on issue milestone added/removed/modified.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"issue_comment": schema.BoolAttribute{
+						Description: "Trigger on issue comment added/removed/modified.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request": schema.BoolAttribute{
+						Description: "Trigger on pull request open/close/reopen/edit.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request_assign": schema.BoolAttribute{
+						Description: "Trigger on pull request assignment/unassignment.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request_label": schema.BoolAttribute{
+						Description: "Trigger on pull request label added/removed.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request_milestone": schema.BoolAttribute{
+						Description: "Trigger on pull request milestone added/removed/modified.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request_comment": schema.BoolAttribute{
+						Description: "Trigger on pull request comment added/removed/modified.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request_review": schema.BoolAttribute{
+						Description: "Trigger on pull request review approved/rejected/review comment added.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request_sync": schema.BoolAttribute{
+						Description: "Trigger on pull request sync (new commits pushed/force-pushed).",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"pull_request_review_request": schema.BoolAttribute{
+						Description: "Trigger on pull request review request added/removed.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"wiki": schema.BoolAttribute{
+						Description: "Trigger on wiki page added/removed/edited/renamed.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"repository": schema.BoolAttribute{
+						Description: "Trigger on repository created/deleted.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"release": schema.BoolAttribute{
+						Description: "Trigger on release published/updated/deleted.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"package": schema.BoolAttribute{
+						Description: "Trigger on package created/deleted.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"action_run_failure": schema.BoolAttribute{
+						Description: "Trigger on action run failure.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"action_run_recover": schema.BoolAttribute{
+						Description: "Trigger on action run success after the last action run in the same workflow failed.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"action_run_success": schema.BoolAttribute{
+						Description: "Trigger on action run success.",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+				},
 			},
 		},
 	}

@@ -57,8 +57,12 @@ resource "forgejo_repository_webhook" "basic" {
   repository = forgejo_repository.example.full_name
   type       = "gitea"
   url        = "https://example.com/webhook"
-  events     = ["push", "pull_request", "issues"]
-  active     = true
+  events {
+    push         = true
+    pull_request = true
+    issues       = true
+  }
+  active = true
 }
 ```
 
@@ -70,8 +74,13 @@ resource "forgejo_repository_webhook" "slack" {
   repository = forgejo_repository.example.full_name
   type       = "slack"
   url        = "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
-  events     = ["push", "pull_request", "issues", "release"]
-  active     = true
+  events {
+    push         = true
+    pull_request = true
+    issues       = true
+    release      = true
+  }
+  active = true
   config = {
     channel  = "#general"
     username = "forgejo-bot"
@@ -84,8 +93,11 @@ resource "forgejo_repository_webhook" "discord" {
   repository = forgejo_repository.example.full_name
   type       = "discord"
   url        = "https://discord.com/api/webhooks/YOUR/DISCORD/WEBHOOK"
-  events     = ["push", "pull_request"]
-  active     = true
+  events {
+    push         = true
+    pull_request = true
+  }
+  active = true
   config = {
     username = "Forgejo Bot"
     icon_url = "https://example.com/forgejo-icon.png"
@@ -98,10 +110,13 @@ resource "forgejo_repository_webhook" "discord" {
 ```terraform
 # Webhook with secret and custom headers
 resource "forgejo_repository_webhook" "secure" {
-  repository           = forgejo_repository.example.full_name
-  type                 = "gitea"
-  url                  = "https://api.example.com/webhooks/forgejo"
-  events               = ["push", "pull_request"]
+  repository = forgejo_repository.example.full_name
+  type       = "gitea"
+  url        = "https://api.example.com/webhooks/forgejo"
+  events {
+    push         = true
+    pull_request = true
+  }
   active               = true
   secret               = "my-webhook-secret-12345"
   authorization_header = "Bearer my-api-token-67890"
@@ -111,10 +126,12 @@ resource "forgejo_repository_webhook" "secure" {
 
 # Form-encoded webhook
 resource "forgejo_repository_webhook" "form_encoded" {
-  repository   = forgejo_repository.example.full_name
-  type         = "forgejo"
-  url          = "https://legacy-api.example.com/webhook"
-  events       = ["push"]
+  repository = forgejo_repository.example.full_name
+  type       = "forgejo"
+  url        = "https://legacy-api.example.com/webhook"
+  events {
+    push = true
+  }
   active       = true
   content_type = "form"
 }
@@ -136,15 +153,43 @@ resource "forgejo_repository_webhook" "form_encoded" {
 - `branch_filter` (String) Branch filter for webhook events. Only triggers on matching branches.
 - `config` (Map of String) Additional configuration options specific to webhook type.
 - `content_type` (String) The content type to deliver the payload. Defaults to `json`.
-- `events` (List of String) List of events that trigger the webhook. If empty, defaults to common events.
+- `events` (Block, Optional) Events that trigger the webhook. Each field corresponds to a Forgejo webhook event type. All fields default to `false`. (see [below for nested schema](#nestedblock--events))
 - `secret` (String, Sensitive) Secret used to validate payload signatures.
 
 ### Read-Only
 
-- `created_at` (String) Time at which the webhook was created.
 - `id` (Number) Numeric identifier of the webhook.
 - `owner` (String) Owner of the repository.
-- `updated_at` (String) Time at which the webhook was last updated.
+
+<a id="nestedblock--events"></a>
+### Nested Schema for `events`
+
+Optional:
+
+- `action_run_failure` (Boolean) Trigger on action run failure.
+- `action_run_recover` (Boolean) Trigger on action run success after the last action run in the same workflow failed.
+- `action_run_success` (Boolean) Trigger on action run success.
+- `create` (Boolean) Trigger on repository/tag creation.
+- `delete` (Boolean) Trigger on branch/tag deletion.
+- `fork` (Boolean) Trigger on repository fork.
+- `issue_assign` (Boolean) Trigger on issue assignment/unassignment.
+- `issue_comment` (Boolean) Trigger on issue comment added/removed/modified.
+- `issue_label` (Boolean) Trigger on issue label added/removed.
+- `issue_milestone` (Boolean) Trigger on issue milestone added/removed/modified.
+- `issues` (Boolean) Trigger on issue open/close/reopen/edit.
+- `package` (Boolean) Trigger on package created/deleted.
+- `pull_request` (Boolean) Trigger on pull request open/close/reopen/edit.
+- `pull_request_assign` (Boolean) Trigger on pull request assignment/unassignment.
+- `pull_request_comment` (Boolean) Trigger on pull request comment added/removed/modified.
+- `pull_request_label` (Boolean) Trigger on pull request label added/removed.
+- `pull_request_milestone` (Boolean) Trigger on pull request milestone added/removed/modified.
+- `pull_request_review` (Boolean) Trigger on pull request review approved/rejected/review comment added.
+- `pull_request_review_request` (Boolean) Trigger on pull request review request added/removed.
+- `pull_request_sync` (Boolean) Trigger on pull request sync (new commits pushed/force-pushed).
+- `push` (Boolean) Trigger on push to repository.
+- `release` (Boolean) Trigger on release published/updated/deleted.
+- `repository` (Boolean) Trigger on repository created/deleted.
+- `wiki` (Boolean) Trigger on wiki page added/removed/edited/renamed.
 
 ## Import
 
