@@ -193,6 +193,9 @@ func eventsModelToStringSlice(events *webhookEventsModel) []string {
 }
 
 // from converts the Forgejo Hook API response to the Terraform model.
+// It preserves write-only fields (secret, authorization_header) from plan/state,
+// only populates events when the block was specified, and only keeps config keys
+// that were already in the plan/state.
 func (m *repositoryWebhookResourceModel) from(hook *forgejo.Hook, repository, owner string) {
 	m.ID = types.Int64Value(hook.ID)
 	m.Repository = types.StringValue(repository)
@@ -213,21 +216,86 @@ func (m *repositoryWebhookResourceModel) from(hook *forgejo.Hook, repository, ow
 		m.ContentType = types.StringValue("json") // Default
 	}
 
-	if secret, ok := hook.Config["secret"]; ok {
-		m.Secret = types.StringValue(secret)
-	} else {
-		m.Secret = types.StringNull()
+	// Secret and authorization_header are write-only: the API does not
+	// return their actual values, so preserve them from plan/state.
+	// (Do not overwrite m.Secret or m.AuthorizationHeader here.)
+
+	// Only populate events when the block was specified (not null).
+	// When the block is omitted from config, m.Events is null and should stay that way.
+	if !m.Events.IsNull() {
+		m.Events = eventsFromHook(hook.Events)
 	}
 
-	if authHeader, ok := hook.Config["authorization_header"]; ok {
-		m.AuthorizationHeader = types.StringValue(authHeader)
-	} else {
-		m.AuthorizationHeader = types.StringNull()
+	// Build config map from API response, but only keep keys that were
+	// already present in the plan/state to avoid "new element appeared" errors.
+	// When m.Config is null (e.g. import, or config not specified), include all API keys.
+	var existingConfigKeys map[string]string
+	filterConfig := false
+	if !m.Config.IsNull() && !m.Config.IsUnknown() {
+		existingConfigKeys = make(map[string]string)
+		m.Config.ElementsAs(context.Background(), &existingConfigKeys, false)
+		filterConfig = true
 	}
 
-	// Convert events slice to structured boolean object
-	eventsModel := webhookEventsModel{}
-	for _, event := range hook.Events {
+	configMap := make(map[string]attr.Value)
+	for key, value := range hook.Config {
+		switch key {
+		case "url", "content_type", "secret", "authorization_header":
+			// Skip these as they're exposed as top-level attributes
+		default:
+			if filterConfig {
+				if _, exists := existingConfigKeys[key]; !exists {
+					continue
+				}
+			}
+			configMap[key] = types.StringValue(value)
+		}
+	}
+
+	if len(configMap) > 0 {
+		config, diags := types.MapValue(types.StringType, configMap)
+		if !diags.HasError() {
+			m.Config = config
+		} else {
+			m.Config = types.MapNull(types.StringType)
+		}
+	} else if !filterConfig {
+		// Only set to null when we weren't filtering (import/no config).
+		// When filtering, keep the existing value if all keys were filtered out.
+		m.Config = types.MapNull(types.StringType)
+	}
+}
+
+// eventsFromHook converts a Forgejo events string slice to a Terraform object.
+func eventsFromHook(hookEvents []string) types.Object {
+	eventsModel := webhookEventsModel{
+		Create:                   types.BoolValue(false),
+		Delete:                   types.BoolValue(false),
+		Fork:                     types.BoolValue(false),
+		Push:                     types.BoolValue(false),
+		Issues:                   types.BoolValue(false),
+		IssueAssign:              types.BoolValue(false),
+		IssueLabel:               types.BoolValue(false),
+		IssueMilestone:           types.BoolValue(false),
+		IssueComment:             types.BoolValue(false),
+		PullRequest:              types.BoolValue(false),
+		PullRequestAssign:        types.BoolValue(false),
+		PullRequestLabel:         types.BoolValue(false),
+		PullRequestMilestone:     types.BoolValue(false),
+		PullRequestComment:       types.BoolValue(false),
+		PullRequestReview:        types.BoolValue(false),
+		PullRequestSync:          types.BoolValue(false),
+		PullRequestReviewRequest: types.BoolValue(false),
+		Wiki:                     types.BoolValue(false),
+		Repository:               types.BoolValue(false),
+		Release:                  types.BoolValue(false),
+		Package:                  types.BoolValue(false),
+		ActionRunFailure:         types.BoolValue(false),
+		ActionRunRecover:         types.BoolValue(false),
+		ActionRunSuccess:         types.BoolValue(false),
+	}
+
+	for _, event := range hookEvents {
 		switch event {
 		case "create":
 			eventsModel.Create = types.BoolValue(true)
@@ -282,108 +350,11 @@ func (m *repositoryWebhookResourceModel) from(hook *forgejo.Hook, repository, ow
 		}
 	}
 
-	// Fill in false for any fields not set by the API response
-	if eventsModel.Create.IsNull() {
-		eventsModel.Create = types.BoolValue(false)
-	}
-	if eventsModel.Delete.IsNull() {
-		eventsModel.Delete = types.BoolValue(false)
-	}
-	if eventsModel.Fork.IsNull() {
-		eventsModel.Fork = types.BoolValue(false)
-	}
-	if eventsModel.Push.IsNull() {
-		eventsModel.Push = types.BoolValue(false)
-	}
-	if eventsModel.Issues.IsNull() {
-		eventsModel.Issues = types.BoolValue(false)
-	}
-	if eventsModel.IssueAssign.IsNull() {
-		eventsModel.IssueAssign = types.BoolValue(false)
-	}
-	if eventsModel.IssueLabel.IsNull() {
-		eventsModel.IssueLabel = types.BoolValue(false)
-	}
-	if eventsModel.IssueMilestone.IsNull() {
-		eventsModel.IssueMilestone = types.BoolValue(false)
-	}
-	if eventsModel.IssueComment.IsNull() {
-		eventsModel.IssueComment = types.BoolValue(false)
-	}
-	if eventsModel.PullRequest.IsNull() {
-		eventsModel.PullRequest = types.BoolValue(false)
-	}
-	if eventsModel.PullRequestAssign.IsNull() {
-		eventsModel.PullRequestAssign = types.BoolValue(false)
-	}
-	if eventsModel.PullRequestLabel.IsNull() {
-		eventsModel.PullRequestLabel = types.BoolValue(false)
-	}
-	if eventsModel.PullRequestMilestone.IsNull() {
-		eventsModel.PullRequestMilestone = types.BoolValue(false)
-	}
-	if eventsModel.PullRequestComment.IsNull() {
-		eventsModel.PullRequestComment = types.BoolValue(false)
-	}
-	if eventsModel.PullRequestReview.IsNull() {
-		eventsModel.PullRequestReview = types.BoolValue(false)
-	}
-	if eventsModel.PullRequestSync.IsNull() {
-		eventsModel.PullRequestSync = types.BoolValue(false)
-	}
-	if eventsModel.PullRequestReviewRequest.IsNull() {
-		eventsModel.PullRequestReviewRequest = types.BoolValue(false)
-	}
-	if eventsModel.Wiki.IsNull() {
-		eventsModel.Wiki = types.BoolValue(false)
-	}
-	if eventsModel.Repository.IsNull() {
-		eventsModel.Repository = types.BoolValue(false)
-	}
-	if eventsModel.Release.IsNull() {
-		eventsModel.Release = types.BoolValue(false)
-	}
-	if eventsModel.Package.IsNull() {
-		eventsModel.Package = types.BoolValue(false)
-	}
-	if eventsModel.ActionRunFailure.IsNull() {
-		eventsModel.ActionRunFailure = types.BoolValue(false)
-	}
-	if eventsModel.ActionRunRecover.IsNull() {
-		eventsModel.ActionRunRecover = types.BoolValue(false)
-	}
-	if eventsModel.ActionRunSuccess.IsNull() {
-		eventsModel.ActionRunSuccess = types.BoolValue(false)
-	}
-
 	eventsObj, diags := types.ObjectValueFrom(context.Background(), webhookEventsAttrTypes(), eventsModel)
 	if !diags.HasError() {
-		m.Events = eventsObj
-	} else {
-		m.Events = types.ObjectNull(webhookEventsAttrTypes())
+		return eventsObj
 	}
-
-	// Set config map (excluding the fields we expose as top-level attributes)
-	configMap := make(map[string]attr.Value)
-	for key, value := range hook.Config {
-		switch key {
-		case "url", "content_type", "secret", "authorization_header":
-			// Skip these as they're exposed as top-level attributes
-		default:
-			configMap[key] = types.StringValue(value)
-		}
-	}
-
-	if len(configMap) > 0 {
-		config, diags := types.MapValue(types.StringType, configMap)
-		if !diags.HasError() {
-			m.Config = config
-		} else {
-			m.Config = types.MapNull(types.StringType)
-		}
-	} else {
-		m.Config = types.MapNull(types.StringType)
-	}
+	return types.ObjectNull(webhookEventsAttrTypes())
 }
 
 // toCreateOption converts the Terraform model to Forgejo CreateHookOption.
@@ -1124,8 +1095,10 @@ func (r *repositoryWebhookResource) ImportState(ctx context.Context, req resourc
 		return
 	}
 
-	// Initialize state model with fetched data
+	// Initialize state model with fetched data.
+	// Pre-set Events to non-null so from() will populate it from the API.
 	var data repositoryWebhookResourceModel
+	data.Events = eventsFromHook(nil)
 	data.from(hook, fmt.Sprintf("%s/%s", owner, repo), owner)
 
 	// Save the imported state
