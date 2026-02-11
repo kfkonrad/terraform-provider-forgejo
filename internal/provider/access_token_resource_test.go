@@ -65,7 +65,7 @@ resource "forgejo_access_token" "test" {
 					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("id"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("username"), knownvalue.StringExact("token_scopes_user")),
 					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("name"), knownvalue.StringExact("test-token-scopes")),
-					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("scopes"), knownvalue.ListExact([]knownvalue.Check{
+					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("scopes"), knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("write:repository"),
 					})),
 					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("token"), knownvalue.NotNull()),

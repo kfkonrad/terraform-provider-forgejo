@@ -7,8 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -31,7 +31,7 @@ type accessTokenResource struct {
 type accessTokenResourceModel struct {
 	ID       types.Int64  `tfsdk:"id"`
 	Name     types.String `tfsdk:"name"`
-	Scopes   types.List   `tfsdk:"scopes"`
+	Scopes   types.Set    `tfsdk:"scopes"`
 	Token    types.String `tfsdk:"token"`
 	Username types.String `tfsdk:"username"`
 }
@@ -58,12 +58,33 @@ func (r *accessTokenResource) Schema(_ context.Context, _ resource.SchemaRequest
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"scopes": schema.ListAttribute{
-				Description: "List of scopes for the access token. Allowed values: `all`, `public-only`, `sudo`, `read:activitypub`, `write:activitypub`, `read:admin`, `write:admin`, `read:issue`, `write:issue`, `read:misc`, `write:misc`, `read:notification`, `write:notification`, `read:organization`, `write:organization`, `read:package`, `write:package`, `read:repository`, `write:repository`, `read:user`, `write:user`.",
+			"scopes": schema.SetAttribute{
+				Description: "Set of scopes for the access token. Allowed values:\n" +
+					"  - `all`\n" +
+					"  - `public-only`\n" +
+					"  - `sudo`\n" +
+					"  - `read:activitypub`\n" +
+					"  - `write:activitypub`\n" +
+					"  - `read:admin`\n" +
+					"  - `write:admin`\n" +
+					"  - `read:issue`\n" +
+					"  - `write:issue`\n" +
+					"  - `read:misc`\n" +
+					"  - `write:misc`\n" +
+					"  - `read:notification`\n" +
+					"  - `write:notification`\n" +
+					"  - `read:organization`\n" +
+					"  - `write:organization`\n" +
+					"  - `read:package`\n" +
+					"  - `write:package`\n" +
+					"  - `read:repository`\n" +
+					"  - `write:repository`\n" +
+					"  - `read:user`\n" +
+					"  - `write:user`",
 				ElementType: types.StringType,
 				Optional:    true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.RequiresReplace(),
 				},
 			},
 			"token": schema.StringAttribute{
@@ -333,10 +354,10 @@ func (m *accessTokenResourceModel) from(t *forgejo.AccessToken) {
 		for i, scope := range t.Scopes {
 			scopeValues[i] = types.StringValue(string(scope))
 		}
-		m.Scopes = types.ListValueMust(types.StringType, scopeValues)
+		m.Scopes = types.SetValueMust(types.StringType, scopeValues)
 	} else {
 		// No scopes returned
-		m.Scopes = types.ListNull(types.StringType)
+		m.Scopes = types.SetNull(types.StringType)
 	}
 
 	// Token value is only available on creation (API returns empty on subsequent reads)

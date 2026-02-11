@@ -49,7 +49,28 @@ resource "forgejo_access_token" "this" {
 
 ### Optional
 
-- `scopes` (List of String) List of scopes for the access token. Allowed values: `all`, `public-only`, `sudo`, `read:activitypub`, `write:activitypub`, `read:admin`, `write:admin`, `read:issue`, `write:issue`, `read:misc`, `write:misc`, `read:notification`, `write:notification`, `read:organization`, `write:organization`, `read:package`, `write:package`, `read:repository`, `write:repository`, `read:user`, `write:user`.
+- `scopes` (Set of String) Set of scopes for the access token. Allowed values:
+  - `all`
+  - `public-only`
+  - `sudo`
+  - `read:activitypub`
+  - `write:activitypub`
+  - `read:admin`
+  - `write:admin`
+  - `read:issue`
+  - `write:issue`
+  - `read:misc`
+  - `write:misc`
+  - `read:notification`
+  - `write:notification`
+  - `read:organization`
+  - `write:organization`
+  - `read:package`
+  - `write:package`
+  - `read:repository`
+  - `write:repository`
+  - `read:user`
+  - `write:user`
 
 ### Read-Only
 
