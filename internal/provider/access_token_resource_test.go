@@ -141,6 +141,7 @@ resource "forgejo_user" "test" {
 resource "forgejo_access_token" "test" {
 	username = forgejo_user.test.login
 	name     = "persist-test"
+	scopes   = ["read:user"]
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -160,6 +161,7 @@ resource "forgejo_user" "test" {
 resource "forgejo_access_token" "test" {
 	username = forgejo_user.test.login
 	name     = "persist-test"
+	scopes   = ["read:user"]
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{

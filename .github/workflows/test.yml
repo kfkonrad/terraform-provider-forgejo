@@ -107,6 +107,9 @@ jobs:
           docker compose start
       - name: Wait for 30 seconds
         run: sleep 30s
+      - name: Generate admin password
+        id: admin
+        run: echo "password=$(openssl rand -base64 32)" >> "$GITHUB_OUTPUT"
       - name: Create admin user
         working-directory: ./docker
         run: >
@@ -114,23 +117,16 @@ jobs:
           /usr/local/bin/forgejo admin user create
           --username tfadmin
           --email tfadmin@localhost
-          --random-password
+          --password "${{ steps.admin.outputs.password }}"
+          --must-change-password=false
           --admin
-      - name: Generate admin token
-        id: admin
-        working-directory: ./docker
-        run: >
-          echo "token=$(docker compose exec -u git forgejo
-          /usr/local/bin/forgejo admin user generate-access-token
-          --username tfadmin
-          --scopes write:organization,write:repository,write:user,write:admin
-          --raw)" >> "$GITHUB_OUTPUT"
 
       - name: Download Go modules
         run: go mod download
       - name: Run acceptance tests
         env:
           TF_ACC: "1"
-          FORGEJO_API_TOKEN: ${{ steps.admin.outputs.token }}
+          FORGEJO_USERNAME: tfadmin
+          FORGEJO_PASSWORD: ${{ steps.admin.outputs.password }}
         run: go test -v -cover ./internal/provider/
         timeout-minutes: 10

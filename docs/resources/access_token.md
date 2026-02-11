@@ -45,10 +45,6 @@ resource "forgejo_access_token" "this" {
 ### Required
 
 - `name` (String) Name of the access token.
-- `username` (String) Username of the user to create the token for. This explicitly specifies which user owns the token.
-
-### Optional
-
 - `scopes` (Set of String) Set of scopes for the access token. Allowed values:
   - `all`
   - `public-only`
@@ -71,6 +67,7 @@ resource "forgejo_access_token" "this" {
   - `write:repository`
   - `read:user`
   - `write:user`
+- `username` (String) Username of the user to create the token for. This explicitly specifies which user owns the token.
 
 ### Read-Only
 

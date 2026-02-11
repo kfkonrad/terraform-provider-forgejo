@@ -295,9 +295,7 @@ resource "forgejo_repository_webhook" "test" {
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("push"), knownvalue.Bool(false)),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("pull_request"), knownvalue.Bool(false)),
-					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events").AtMapKey("issues"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("events"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("active"), knownvalue.Bool(true)), // Default active
 				},
 			},
@@ -342,12 +340,15 @@ resource "forgejo_repository_webhook" "test" {
 	events {
 		push = true
 	}
+	config = {
+		channel = "#general"
+	}
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_repository_webhook.test", tfjsonpath.New("type"), knownvalue.StringExact("slack")),
 				},
-				ExpectNonEmptyPlan: true, // Should trigger recreation
+				// type has RequiresReplace(), so changing it destroys and recreates the resource
 			},
 		},
 	})
