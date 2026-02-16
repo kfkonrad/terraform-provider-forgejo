@@ -22,6 +22,7 @@ Resources:
 - `forgejo_repository` ([documentation](docs/resources/repository.md))
 - `forgejo_repository_action_secret` ([documentation](docs/resources/repository_action_secret.md))
 - `forgejo_repository_branch_rule` ([documentation](docs/resources/repository_branch_rule.md))
+- `forgejo_repository_tag_rule` ([documentation](docs/resources/repository_tag_rule.md))
 - `forgejo_repository_webhook` ([documentation](docs/resources/repository_webhook.md))
 - `forgejo_team` ([documentation](docs/resources/team.md))
 - `forgejo_team_membership` ([documentation](docs/resources/team_membership.md))

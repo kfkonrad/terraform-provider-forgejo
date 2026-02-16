@@ -163,14 +163,13 @@ func (r *accessTokenResource) Create(ctx context.Context, req resource.CreateReq
 
 	// Build create option - username is required so we always have it
 	username := data.Username.ValueString()
-	opt := forgejo.CreateAccessTokenOptionWithUsername{
-		Name:     data.Name.ValueString(),
-		Scopes:   scopes,
-		Username: &username,
+	opt := forgejo.CreateAccessTokenOption{
+		Name:   data.Name.ValueString(),
+		Scopes: scopes,
 	}
 
 	// Use Forgejo client to create access token
-	token, res, err := r.client.CreateAccessToken(opt)
+	token, res, err := r.client.CreateAccessToken(username, opt)
 	if err != nil {
 		tflog.Error(ctx, "Error", map[string]any{
 			"status": res.Status,
@@ -223,12 +222,10 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 
 	// Username is required, so we always know which user's tokens to list
 	username := data.Username.ValueString()
-	listOpts := forgejo.ListAccessTokensOptions{
-		Username: &username,
-	}
+	listOpts := forgejo.ListAccessTokensOptions{}
 
 	// Use Forgejo client to list tokens for the specified user
-	tokens, res, err := r.client.ListAccessTokens(listOpts)
+	tokens, res, err := r.client.ListAccessTokens(username, listOpts)
 	if err != nil {
 		tflog.Error(ctx, "Error", map[string]any{
 			"status": res.Status,
@@ -315,14 +312,8 @@ func (r *accessTokenResource) Delete(ctx context.Context, req resource.DeleteReq
 		"username": username,
 	})
 
-	// Build delete options - username is required so we always specify it
-	deleteOpts := forgejo.DeleteAccessTokensOptions{
-		TokenID:  tokenID,
-		Username: &username,
-	}
-
 	// Use Forgejo client to delete access token
-	res, err := r.client.DeleteAccessToken(deleteOpts)
+	res, err := r.client.DeleteAccessToken(username, tokenID)
 	if err != nil {
 		tflog.Error(ctx, "Error", map[string]any{
 			"status": res.Status,
