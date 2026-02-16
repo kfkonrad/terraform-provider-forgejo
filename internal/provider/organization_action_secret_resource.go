@@ -297,15 +297,32 @@ func (r *organizationActionSecretResource) Delete(ctx context.Context, req resou
 		"name": data.Name.ValueString(),
 	})
 
-	resp.Diagnostics.AddWarning(
-		"Resource cannot be deleted from Forgejo",
-		fmt.Sprintf(
-			"The Forgejo SDK does not currently support deleting organization action secrets. "+
-				"Secret with org %s and name %s will be removed from Terraform state, but will remain in Forgejo.",
-			data.Organization.String(),
-			data.Name.String(),
-		),
+	// Use Forgejo client to delete organization action secret
+	res, err := r.client.DeleteOrgActionSecret(
+		data.Organization.ValueString(),
+		data.Name.ValueString(),
 	)
+	if err != nil {
+		tflog.Error(ctx, "Error", map[string]any{
+			"status": res.Status,
+		})
+
+		var msg string
+		switch res.StatusCode {
+		case 404:
+			msg = fmt.Sprintf(
+				"Organization action secret with org %s and name %s not found: %s",
+				data.Organization.String(),
+				data.Name.String(),
+				err,
+			)
+		default:
+			msg = fmt.Sprintf("Unknown error: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to delete organization action secret", msg)
+
+		return
+	}
 }
 
 func (r *organizationActionSecretResource) getSecret(ctx context.Context, data *organizationActionSecretResourceModel) (*forgejo.Secret, diag.Diagnostics) {

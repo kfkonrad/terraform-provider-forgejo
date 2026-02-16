@@ -447,16 +447,34 @@ func (r *repositoryActionSecretResource) Delete(ctx context.Context, req resourc
 		"name": data.Name.ValueString(),
 	})
 
-	resp.Diagnostics.AddWarning(
-		"Resource cannot be deleted from Forgejo",
-		fmt.Sprintf(
-			"The Forgejo SDK does not currently support deleting repository action secrets. "+
-				"Secret with owner %s repo %s and name %s will be removed from Terraform state, but will remain in Forgejo.",
-			repo.Owner.String(),
-			repo.Name.String(),
-			data.Name.String(),
-		),
+	// Use Forgejo client to delete repository action secret
+	res, err = r.client.DeleteRepoActionSecret(
+		repo.Owner.ValueString(),
+		repo.Name.ValueString(),
+		data.Name.ValueString(),
 	)
+	if err != nil {
+		tflog.Error(ctx, "Error", map[string]any{
+			"status": res.Status,
+		})
+
+		var msg string
+		switch res.StatusCode {
+		case 404:
+			msg = fmt.Sprintf(
+				"Repository action secret with user \"%s\" repo \"%s\" and name %s not found: %s",
+				repo.Owner.ValueString(),
+				repo.Name.ValueString(),
+				data.Name.String(),
+				err,
+			)
+		default:
+			msg = fmt.Sprintf("Unknown error: %s", err)
+		}
+		resp.Diagnostics.AddError("Unable to delete repository action secret", msg)
+
+		return
+	}
 }
 
 func (r *repositoryActionSecretResource) getSecret(ctx context.Context, owner, repoName string, data *repositoryActionSecretResourceModel) (*forgejo.Secret, diag.Diagnostics) {
