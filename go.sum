@@ -1,5 +1,5 @@
-codeberg.org/kfkonrad/forgejo-sdk/forgejo/v2 v2.2.2-dev.1 h1:mYEfEHFk2pDnvuM1lWbnkRwucMqd2XbtQCWIRE2EBkw=
-codeberg.org/kfkonrad/forgejo-sdk/forgejo/v2 v2.2.2-dev.1/go.mod h1:6Bc9/o7OKiOan7lKeHYsbxuW0cG4Tso7/ptYv16gtXc=
+codeberg.org/kfkonrad/forgejo-sdk/forgejo/v2 v2.2.2-dev.3 h1:VpKeYZOtUhtGut3rJ0HOF4kBSMPMxWzHcnDipdGt/Og=
+codeberg.org/kfkonrad/forgejo-sdk/forgejo/v2 v2.2.2-dev.3/go.mod h1:as/trFjyF7OtQO6/HyYY9+ur8CzWRtlXs9e/xOogCjo=
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 github.com/42wim/httpsig v1.2.3 h1:xb0YyWhkYj57SPtfSttIobJUPJZB9as1nsfo7KWVcEs=
