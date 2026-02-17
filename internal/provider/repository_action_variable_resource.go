@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -56,13 +57,14 @@ func (r *repositoryActionVariableResource) Schema(_ context.Context, _ resource.
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "Name of the variable.",
+				Description: "Name of the variable. Must contain only uppercase letters, digits, and underscores, and start with a letter.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
+					stringvalidator.RegexMatches(regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`), "must contain only uppercase letters, digits, and underscores, and start with a letter"),
 				},
 			},
 			"value": schema.StringAttribute{
@@ -287,6 +289,7 @@ func (r *repositoryActionVariableResource) Read(ctx context.Context, req resourc
 		return
 	}
 
+	data.Name = types.StringValue(variable.Name)
 	data.Value = types.StringValue(variable.Data)
 
 	// Save data into Terraform state

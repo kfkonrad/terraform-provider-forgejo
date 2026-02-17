@@ -24,13 +24,13 @@ resource "forgejo_organization" "test" {
 }
 resource "forgejo_organization_action_variable" "test" {
 	organization = forgejo_organization.test.name
-	name         = "my_variable"
+	name         = "MY_VARIABLE"
 	value        = "my_variable_value"
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("organization"), knownvalue.StringExact("test_action_var_org")),
-					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("name"), knownvalue.StringExact("my_variable")),
+					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("name"), knownvalue.StringExact("MY_VARIABLE")),
 					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("value"), knownvalue.StringExact("my_variable_value")),
 				},
 			},
@@ -41,10 +41,12 @@ resource "forgejo_organization_action_variable" "test" {
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
 					rs := s.RootModule().Resources["forgejo_organization_action_variable.test"]
 					org := rs.Primary.Attributes["organization"]
+					name := rs.Primary.Attributes["name"]
 
-					return fmt.Sprintf("%s:%s", org, "my_variable"), nil
+					return fmt.Sprintf("%s:%s", org, name), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "name",
 			},
 			// Update and Read testing
 			{
@@ -54,13 +56,13 @@ resource "forgejo_organization" "test" {
 }
 resource "forgejo_organization_action_variable" "test" {
 	organization = forgejo_organization.test.name
-	name         = "my_variable"
+	name         = "MY_VARIABLE"
 	value        = "my_new_variable_value"
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("organization"), knownvalue.StringExact("test_action_var_org")),
-					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("name"), knownvalue.StringExact("my_variable")),
+					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("name"), knownvalue.StringExact("MY_VARIABLE")),
 					statecheck.ExpectKnownValue("forgejo_organization_action_variable.test", tfjsonpath.New("value"), knownvalue.StringExact("my_new_variable_value")),
 				},
 			},
