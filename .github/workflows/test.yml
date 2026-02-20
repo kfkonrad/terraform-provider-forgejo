@@ -66,7 +66,7 @@ jobs:
             (echo; echo "Unexpected difference in directories after code generation. Run 'make generate' command and commit."; exit 1)
 
   # Run acceptance tests in a matrix with Terraform CLI versions
-  test:
+  test-terraform:
     name: Terraform Provider Acceptance Tests
     needs: build
     runs-on: ubuntu-latest
@@ -76,7 +76,6 @@ jobs:
       matrix:
         # list whatever Terraform versions here you would like to support
         terraform:
-          - "1.12.*"
           - "1.13.*"
           - "1.14.*"
 
@@ -126,6 +125,73 @@ jobs:
       - name: Run acceptance tests
         env:
           TF_ACC: "1"
+          FORGEJO_USERNAME: tfadmin
+          FORGEJO_PASSWORD: ${{ steps.admin.outputs.password }}
+        run: go test -v -cover ./internal/provider/
+        timeout-minutes: 10
+
+  # Run acceptance tests in a matrix with OpenTofu CLI versions
+  test-opentofu:
+    name: OpenTofu Provider Acceptance Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # list whatever OpenTofu versions here you would like to support
+        opentofu:
+          - "1.10.*"
+          - "1.11.*"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: "go.mod"
+          cache: true
+      - name: Set up OpenTofu
+        id: setup-opentofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
+        with:
+          tofu_version: ${{ matrix.opentofu }}
+          tofu_wrapper: false
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+
+      - name: Start Forgejo server
+        working-directory: ./docker
+        run: |
+          docker compose pull --quiet
+          docker compose up --no-start
+          docker run --rm -v docker_forgejo:/data alpine mkdir -p /data/gitea/conf
+          docker compose cp app.ini forgejo:/data/gitea/conf/app.ini
+          docker compose start
+      - name: Wait for 30 seconds
+        run: sleep 30s
+      - name: Generate admin password
+        id: admin
+        run: echo "password=$(openssl rand -base64 32)" >> "$GITHUB_OUTPUT"
+      - name: Create admin user
+        working-directory: ./docker
+        run: >
+          docker compose exec -u git forgejo
+          /usr/local/bin/forgejo admin user create
+          --username tfadmin
+          --email tfadmin@localhost
+          --password "${{ steps.admin.outputs.password }}"
+          --must-change-password=false
+          --admin
+
+      - name: Download Go modules
+        run: go mod download
+      - name: Run acceptance tests
+        env:
+          TF_ACC: "1"
+          TF_ACC_TERRAFORM_PATH: ${{ steps.setup-opentofu.outputs.tofu_path }}
           FORGEJO_USERNAME: tfadmin
           FORGEJO_PASSWORD: ${{ steps.admin.outputs.password }}
         run: go test -v -cover ./internal/provider/
