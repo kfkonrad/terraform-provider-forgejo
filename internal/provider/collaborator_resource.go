@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -103,41 +102,33 @@ func (r *collaboratorResource) Configure(_ context.Context, req resource.Configu
 
 // ImportState implements resource.ResourceWithImportState.
 // ImportState is called when importing an existing resource.
-// The import ID format is: repository_id:user
-// Example: terraform import forgejo_collaborator.example 123:john.
+// The import ID format is: owner:repo:user
+// Example: terraform import forgejo_collaborator.example my-org:my-repo:john.
 func (r *collaboratorResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import collaborator resource"))
 
-	// Parse the import ID (format: repository_id:user)
+	// Parse the import ID (format: owner:repo:user)
 	parts := strings.Split(req.ID, ":")
-	if len(parts) != 2 {
+	if len(parts) != 3 {
 		resp.Diagnostics.AddError(
 			"Invalid import ID format",
-			fmt.Sprintf("Expected format 'repository_id:user', got: %s", req.ID),
+			fmt.Sprintf("Expected format 'owner:repo:user', got: %s", req.ID),
 		)
 		return
 	}
 
-	repositoryIDStr := parts[0]
-	username := parts[1]
-
-	// Parse repository ID
-	repositoryID, err := strconv.ParseInt(repositoryIDStr, 10, 64)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid repository ID",
-			fmt.Sprintf("Repository ID must be a number, got: %s", repositoryIDStr),
-		)
-		return
-	}
+	owner := parts[0]
+	repoName := parts[1]
+	username := parts[2]
 
 	tflog.Info(ctx, "Importing collaborator", map[string]any{
-		"repository_id": repositoryID,
-		"user":          username,
+		"owner": owner,
+		"repo":  repoName,
+		"user":  username,
 	})
 
-	// Get repository information
-	repo, res, err := r.client.GetRepoByID(repositoryID)
+	// Get repository information to obtain the numeric ID
+	repo, res, err := r.client.GetRepo(owner, repoName)
 	if err != nil {
 		if res != nil {
 			tflog.Error(ctx, "Error fetching repository", map[string]any{
@@ -149,7 +140,7 @@ func (r *collaboratorResource) ImportState(ctx context.Context, req resource.Imp
 		if res != nil {
 			switch res.StatusCode {
 			case 404:
-				msg = fmt.Sprintf("Repository with ID %d not found", repositoryID)
+				msg = fmt.Sprintf("Repository %s/%s not found", owner, repoName)
 			default:
 				msg = fmt.Sprintf("Error fetching repository: %s", err)
 			}
@@ -161,7 +152,7 @@ func (r *collaboratorResource) ImportState(ctx context.Context, req resource.Imp
 	}
 
 	// Get collaborator permission
-	perms, res, err := r.client.CollaboratorPermission(repo.Owner.UserName, repo.Name, username)
+	perms, res, err := r.client.CollaboratorPermission(owner, repoName, username)
 	if err != nil {
 		if res != nil {
 			tflog.Error(ctx, "Error fetching collaborator", map[string]any{
@@ -173,9 +164,9 @@ func (r *collaboratorResource) ImportState(ctx context.Context, req resource.Imp
 		if res != nil {
 			switch res.StatusCode {
 			case 404:
-				msg = fmt.Sprintf("Collaborator %s not found in repository %s/%s", username, repo.Owner.UserName, repo.Name)
+				msg = fmt.Sprintf("Collaborator %s not found in repository %s/%s", username, owner, repoName)
 			case 403:
-				msg = fmt.Sprintf("Not authorized to access collaborator %s in repository %s/%s", username, repo.Owner.UserName, repo.Name)
+				msg = fmt.Sprintf("Not authorized to access collaborator %s in repository %s/%s", username, owner, repoName)
 			default:
 				msg = fmt.Sprintf("Error fetching collaborator: %s", err)
 			}
@@ -188,7 +179,7 @@ func (r *collaboratorResource) ImportState(ctx context.Context, req resource.Imp
 
 	// Initialize state model with fetched data
 	data := collaboratorResourceModel{
-		RepositoryID: types.Int64Value(repositoryID),
+		RepositoryID: types.Int64Value(repo.ID),
 		User:         types.StringValue(username),
 		Permission:   types.StringValue(string(perms.Permission)),
 	}
@@ -201,7 +192,7 @@ func (r *collaboratorResource) ImportState(ctx context.Context, req resource.Imp
 	}
 
 	tflog.Info(ctx, "Collaborator imported successfully", map[string]any{
-		"repository_id": repositoryID,
+		"repository_id": repo.ID,
 		"user":          username,
 		"permission":    perms.Permission,
 	})

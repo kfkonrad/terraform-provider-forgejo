@@ -25,9 +25,10 @@ type collaboratorDataSource struct {
 
 // collaboratorDataSourceModel maps the data source schema data.
 type collaboratorDataSourceModel struct {
-	RepositoryID types.Int64  `tfsdk:"repository_id"`
-	User         types.String `tfsdk:"user"`
-	Permission   types.String `tfsdk:"permission"`
+	Owner      types.String `tfsdk:"owner"`
+	Repository types.String `tfsdk:"repository"`
+	User       types.String `tfsdk:"user"`
+	Permission types.String `tfsdk:"permission"`
 }
 
 // Metadata returns the data source type name.
@@ -41,8 +42,12 @@ func (d *collaboratorDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		Description: "Forgejo collaborator data source.",
 
 		Attributes: map[string]schema.Attribute{
-			"repository_id": schema.Int64Attribute{
-				Description: "Numeric identifier of the repository.",
+			"owner": schema.StringAttribute{
+				Description: "Owner of the repository (user or organization name).",
+				Required:    true,
+			},
+			"repository": schema.StringAttribute{
+				Description: "Name of the repository.",
 				Required:    true,
 			},
 			"user": schema.StringAttribute{
@@ -84,10 +89,7 @@ func (d *collaboratorDataSource) Configure(_ context.Context, req datasource.Con
 func (d *collaboratorDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	defer un(trace(ctx, "Read collaborator data source"))
 
-	var (
-		repo repositoryResourceModel
-		data collaboratorDataSourceModel
-	)
+	var data collaboratorDataSourceModel
 
 	// Read Terraform configuration data into model
 	diags := req.Config.Get(ctx, &data)
@@ -96,48 +98,17 @@ func (d *collaboratorDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 
-	tflog.Info(ctx, "Get repository by id", map[string]any{
-		"id": data.RepositoryID.ValueInt64(),
-	})
-
-	// Use Forgejo client to get repository by id
-	rep, res, err := d.client.GetRepoByID(data.RepositoryID.ValueInt64())
-	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
-		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with id %d not found: %s",
-				data.RepositoryID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
-		}
-		resp.Diagnostics.AddError("Unable to get repository by id", msg)
-
-		return
-	}
-
-	// Map response body to model
-	repo.from(rep)
+	owner := data.Owner.ValueString()
+	repoName := data.Repository.ValueString()
 
 	tflog.Info(ctx, "Read collaborator", map[string]any{
-		"owner":        repo.Owner.ValueString(),
-		"repo":         repo.Name.ValueString(),
+		"owner":        owner,
+		"repo":         repoName,
 		"collaborator": data.User.ValueString(),
 	})
 
 	// Use Forgejo client to get collaborator permission
-	perms, res, err := d.client.CollaboratorPermission(
-		repo.Owner.ValueString(),
-		repo.Name.ValueString(),
-		data.User.ValueString(),
-	)
+	perms, res, err := d.client.CollaboratorPermission(owner, repoName, data.User.ValueString())
 	if err != nil {
 		var msg string
 		if res == nil {
@@ -150,18 +121,18 @@ func (d *collaboratorDataSource) Read(ctx context.Context, req datasource.ReadRe
 			switch res.StatusCode {
 			case 403:
 				msg = fmt.Sprintf(
-					"Collaborator with user %s repo %s and name %s forbidden: %s",
-					repo.Owner.String(),
-					repo.Name.String(),
+					"Collaborator with user %s repo %s/%s forbidden: %s",
 					data.User.String(),
+					owner,
+					repoName,
 					err,
 				)
 			case 404:
 				msg = fmt.Sprintf(
-					"Collaborator with user %s repo %s and name %s not found: %s",
-					repo.Owner.String(),
-					repo.Name.String(),
+					"Collaborator with user %s repo %s/%s not found: %s",
 					data.User.String(),
+					owner,
+					repoName,
 					err,
 				)
 			default:

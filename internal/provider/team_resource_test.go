@@ -1,6 +1,7 @@
 package provider_test
 
 import (
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -287,15 +288,16 @@ resource "forgejo_team" "test" {
 					statecheck.ExpectKnownValue("forgejo_team.test", tfjsonpath.New("name"), knownvalue.StringExact("importable")),
 				},
 			},
-			// Import the team using team ID
+			// Import the team using organization:team_name
 			{
 				ResourceName: "forgejo_team.test",
 				ImportState:  true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
-					// Get the team ID from the state
+					// Get the organization and name from the state
 					rs := s.RootModule().Resources["forgejo_team.test"]
-					id := rs.Primary.Attributes["id"]
-					return id, nil
+					org := rs.Primary.Attributes["organization"]
+					name := rs.Primary.Attributes["name"]
+					return fmt.Sprintf("%s:%s", org, name), nil
 				},
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"description", "can_create_org_repo", "includes_all_repositories"}, // These fields are computed/default

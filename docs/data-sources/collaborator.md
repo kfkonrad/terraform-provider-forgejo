@@ -45,7 +45,8 @@ data "forgejo_collaborator" "this" {
 
 ### Required
 
-- `repository_id` (Number) Numeric identifier of the repository.
+- `owner` (String) Owner of the repository (user or organization name).
+- `repository` (String) Name of the repository.
 - `user` (String) Username of the collaborator.
 
 ### Read-Only

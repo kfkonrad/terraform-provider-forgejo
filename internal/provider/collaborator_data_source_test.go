@@ -32,12 +32,14 @@ resource "forgejo_collaborator" "test" {
 	permission    = "read"
 }
 data "forgejo_collaborator" "test" {
-	repository_id = forgejo_repository.test.id
-	user          = forgejo_user.test.login
+	owner      = forgejo_repository.test.owner
+	repository = forgejo_repository.test.name
+	user       = forgejo_user.test.login
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.forgejo_collaborator.test", tfjsonpath.New("repository_id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.forgejo_collaborator.test", tfjsonpath.New("owner"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.forgejo_collaborator.test", tfjsonpath.New("repository"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.forgejo_collaborator.test", tfjsonpath.New("user"), knownvalue.StringExact("tftest")),
 					statecheck.ExpectKnownValue("data.forgejo_collaborator.test", tfjsonpath.New("permission"), knownvalue.StringRegexp(regexp.MustCompile("^read|write|admin$"))),
 				},

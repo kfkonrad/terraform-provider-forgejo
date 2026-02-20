@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -270,40 +269,63 @@ func (r *teamMembershipResource) Delete(ctx context.Context, req resource.Delete
 	}
 }
 
-// ImportState imports the resource state from team_id:username format.
+// ImportState imports the resource state from organization:team_name:username format.
 func (r *teamMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import team membership resource"))
 
-	// ID format: team_id:username
+	// ID format: organization:team_name:username
 	parts := strings.Split(req.ID, ":")
-	if len(parts) != 2 {
+	if len(parts) != 3 {
 		resp.Diagnostics.AddError(
 			"Invalid import ID",
-			fmt.Sprintf("Expected format: team_id:username, got: %s", req.ID),
+			fmt.Sprintf("Expected format: organization:team_name:username, got: %s", req.ID),
 		)
 		return
 	}
 
-	teamIDStr := parts[0]
-	username := parts[1]
-
-	// Parse team ID
-	teamID, err := strconv.ParseInt(teamIDStr, 10, 64)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid team ID",
-			fmt.Sprintf("Team ID must be numeric, got: %s", teamIDStr),
-		)
-		return
-	}
+	org := parts[0]
+	teamName := parts[1]
+	username := parts[2]
 
 	tflog.Info(ctx, "Importing team membership", map[string]any{
-		"team_id":  teamID,
-		"username": username,
+		"organization": org,
+		"team_name":    teamName,
+		"username":     username,
 	})
 
+	// Search for the team by name in the organization
+	teams, res, err := r.client.SearchOrgTeams(org, &forgejo.SearchTeamsOptions{Query: teamName})
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error searching teams", map[string]any{
+				"status": res.Status,
+			})
+		}
+		resp.Diagnostics.AddError("Unable to import team membership", fmt.Sprintf("Error searching teams: %s", err))
+		return
+	}
+
+	// Find exact name match
+	var teamID int64
+	found := false
+	for _, t := range teams {
+		if t.Name == teamName {
+			teamID = t.ID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		resp.Diagnostics.AddError(
+			"Unable to import team membership",
+			fmt.Sprintf("No team with name %q found in organization %q", teamName, org),
+		)
+		return
+	}
+
 	// Verify the team member exists
-	_, res, err := r.client.GetTeamMember(teamID, username)
+	_, res, err = r.client.GetTeamMember(teamID, username)
 	if err != nil {
 		var msg string
 		if res != nil {

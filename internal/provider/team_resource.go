@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -541,28 +541,61 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 
 // ImportState implements resource.ResourceWithImportState.
 // ImportState is called when importing an existing resource.
-// The import ID format is: team_id
-// Example: terraform import forgejo_team.developers 42.
+// The import ID format is: organization:team_name
+// Example: terraform import forgejo_team.developers my-org:developers.
 func (r *teamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import team resource"))
 
-	teamIDStr := req.ID
-
-	// Parse team ID
-	teamID, err := strconv.ParseInt(teamIDStr, 10, 64)
-	if err != nil {
+	// Parse the import ID (format: organization:team_name)
+	parts := strings.Split(req.ID, ":")
+	if len(parts) != 2 {
 		resp.Diagnostics.AddError(
-			"Invalid team ID",
-			fmt.Sprintf("Team ID must be a number, got: %s", teamIDStr),
+			"Invalid import ID format",
+			fmt.Sprintf("Expected format 'organization:team_name', got: %s", req.ID),
 		)
 		return
 	}
 
+	org := parts[0]
+	teamName := parts[1]
+
 	tflog.Info(ctx, "Importing team", map[string]any{
-		"team_id": teamID,
+		"organization": org,
+		"team_name":    teamName,
 	})
 
-	// Fetch the team from Forgejo API
+	// Search for the team by name in the organization
+	teams, res, err := r.client.SearchOrgTeams(org, &forgejo.SearchTeamsOptions{Query: teamName})
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error searching teams", map[string]any{
+				"status": res.Status,
+			})
+		}
+		resp.Diagnostics.AddError("Unable to import team", fmt.Sprintf("Error searching teams: %s", err))
+		return
+	}
+
+	// Find exact name match
+	var teamID int64
+	found := false
+	for _, t := range teams {
+		if t.Name == teamName {
+			teamID = t.ID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		resp.Diagnostics.AddError(
+			"Unable to import team",
+			fmt.Sprintf("No team with name %q found in organization %q", teamName, org),
+		)
+		return
+	}
+
+	// Fetch the full team details from Forgejo API
 	team, res, err := r.client.GetTeam(teamID)
 	if err != nil {
 		if res != nil {
