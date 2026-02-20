@@ -797,30 +797,34 @@ func (r *repositoryWebhookResource) Create(ctx context.Context, req resource.Cre
 	// Use Forgejo client to create new webhook
 	hook, res, err := r.client.CreateRepoHook(owner, repo, *opts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository webhook with owner %s repo %s forbidden: %s",
-				owner,
-				repo,
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository with owner %s and name %s not found: %s",
-				owner,
-				repo,
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository webhook with owner %s repo %s forbidden: %s",
+					owner,
+					repo,
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository with owner %s and name %s not found: %s",
+					owner,
+					repo,
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create repository webhook", msg)
 
@@ -855,7 +859,7 @@ func (r *repositoryWebhookResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	tflog.Info(ctx, "Get repository webhook by id", map[string]any{
+	tflog.Info(ctx, "Read repository webhook", map[string]any{
 		"owner":      owner,
 		"repo":       repo,
 		"webhook_id": data.ID.ValueInt64(),
@@ -864,24 +868,28 @@ func (r *repositoryWebhookResource) Read(ctx context.Context, req resource.ReadR
 	// Use Forgejo client to get webhook
 	hook, res, err := r.client.GetRepoHook(owner, repo, data.ID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository webhook with owner %s repo %s and id %d not found: %s",
-				owner,
-				repo,
-				data.ID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository webhook with owner %s repo %s and id %d not found: %s",
+					owner,
+					repo,
+					data.ID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get repository webhook", msg)
+		resp.Diagnostics.AddError("Unable to read repository webhook", msg)
 
 		return
 	}
@@ -930,32 +938,36 @@ func (r *repositoryWebhookResource) Update(ctx context.Context, req resource.Upd
 	// Use Forgejo client to update webhook
 	res, err := r.client.EditRepoHook(owner, repo, data.ID.ValueInt64(), *opts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository webhook with owner %s repo %s and id %d forbidden: %s",
-				owner,
-				repo,
-				data.ID.ValueInt64(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository webhook with owner %s repo %s and id %d not found: %s",
-				owner,
-				repo,
-				data.ID.ValueInt64(),
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository webhook with owner %s repo %s and id %d forbidden: %s",
+					owner,
+					repo,
+					data.ID.ValueInt64(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository webhook with owner %s repo %s and id %d not found: %s",
+					owner,
+					repo,
+					data.ID.ValueInt64(),
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update repository webhook", msg)
 
@@ -1006,30 +1018,34 @@ func (r *repositoryWebhookResource) Delete(ctx context.Context, req resource.Del
 	// Use Forgejo client to delete webhook
 	res, err := r.client.DeleteRepoHook(owner, repo, data.ID.ValueInt64())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"Repository webhook with owner %s repo %s and id %d forbidden: %s",
-				owner,
-				repo,
-				data.ID.ValueInt64(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository webhook with owner %s repo %s and id %d not found: %s",
-				owner,
-				repo,
-				data.ID.ValueInt64(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"Repository webhook with owner %s repo %s and id %d forbidden: %s",
+					owner,
+					repo,
+					data.ID.ValueInt64(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository webhook with owner %s repo %s and id %d not found: %s",
+					owner,
+					repo,
+					data.ID.ValueInt64(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete repository webhook", msg)
 
@@ -1073,22 +1089,26 @@ func (r *repositoryWebhookResource) ImportState(ctx context.Context, req resourc
 	// Fetch the webhook from Forgejo API
 	hook, res, err := r.client.GetRepoHook(owner, repo, webhookID)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"Repository webhook with owner %s repo %s and id %d not found: %s",
-				owner,
-				repo,
-				webhookID,
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"Repository webhook with owner %s repo %s and id %d not found: %s",
+					owner,
+					repo,
+					webhookID,
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to import repository webhook", msg)
 

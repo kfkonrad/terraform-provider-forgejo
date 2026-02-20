@@ -63,8 +63,8 @@ resource "forgejo_collaborator" "admin" {
 
 ## Import
 
-Collaborator can be imported using the repository ID and username separated by a colon. Format: `repository_id:username`
+Collaborator can be imported using the owner, repository name, and username separated by colons. Format: `owner:repo:username`
 
 ```shell
-terraform import forgejo_collaborator.example 123:john
+terraform import forgejo_collaborator.example my-org:my-repo:john
 ```

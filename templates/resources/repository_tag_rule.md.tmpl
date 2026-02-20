@@ -1,0 +1,34 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}} ({{.Name}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+### Provider Configuration
+
+{{ tffile "examples/resources/forgejo_repository_tag_rule/provider.tf" }}
+
+### Basic Tag Rule
+
+{{ tffile "examples/resources/forgejo_repository_tag_rule/basic_tag_rule.tf" }}
+
+### Advanced Tag Rule (Whitelist Restrictions)
+
+{{ tffile "examples/resources/forgejo_repository_tag_rule/advanced_tag_rule.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Repository tag rules can be imported using the repository owner, repository name, and the numeric tag protection ID in the format `owner:repo:id`.
+
+```shell
+terraform import forgejo_repository_tag_rule.release my-org:my-repo:42
+```

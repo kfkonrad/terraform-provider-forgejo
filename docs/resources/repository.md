@@ -113,6 +113,7 @@ resource "forgejo_repository" "mirror" {
 - `allow_rebase` (Boolean) Allowed to rebase then fast-forward? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `allow_rebase_explicit` (Boolean) Allowed to rebase then create merge commit? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `allow_squash_merge` (Boolean) Allowed to create squash commit? Defaults to `true`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
+- `archive_on_destroy` (Boolean) Archive the repo instead of delete?
 - `archived` (Boolean) Is the repository archived? Defaults to `false`.
 - `auth_token` (String, Sensitive) API token for authenticating with migrate / clone URL. **Note**: This setting is only effective if `clone_addr` is set.
 - `auto_init` (Boolean) Whether the repository should be auto-intialized? Defaults to `true`.
@@ -141,7 +142,7 @@ resource "forgejo_repository" "mirror" {
 - `milestones` (Boolean) Whether to migrate milestones. Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
 - `mirror` (Boolean) Is the repository a mirror? Defaults to `false`. **Note**: This setting is only effective if `clone_addr` is set.
 - `mirror_interval` (String) Mirror interval of the repository. **Note**: This setting is only effective if `mirror` is `true`.
-- `owner` (String) Owner of the repository.
+- `owner` (String) Owner of the repository (user or organization).
 - `private` (Boolean) Is the repository private? Defaults to `false`.
 - `readme` (String) Readme of the repository to create.
 - `service` (String) Service to migrate from. Allowed values: `git`, `github`, `gitlab`, `forgejo`, `gitea`, `gogs`. **Note**: This setting is only effective if `clone_addr` is set.

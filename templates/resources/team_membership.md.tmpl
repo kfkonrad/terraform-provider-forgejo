@@ -19,8 +19,8 @@ description: |-
 
 ## Import
 
-Team membership can be imported using the team ID and username separated by a colon. Format: `team_id:username`
+Team membership can be imported using the organization name, team name, and username separated by colons. Format: `organization:team_name:username`
 
 ```shell
-terraform import forgejo_team_membership.example 42:john
+terraform import forgejo_team_membership.example my-org:developers:john
 ```

@@ -94,6 +94,31 @@ terraform-provider-forgejo/
 - Config pulled from Terraform variables or environment variables (`FORGEJO_*`)
 - Forgejo API client created in `Configure()` and injected into resources
 
+### Resource Implementation Patterns
+
+**Interface assertions** at top of each resource file:
+```go
+var (
+    _ resource.Resource                = &myResource{}
+    _ resource.ResourceWithConfigure   = &myResource{}
+    _ resource.ResourceWithImportState = &myResource{}  // if import supported
+)
+```
+
+**Model struct** with `tfsdk` tags maps Terraform schema to Go types. Each resource has a `from()` method to populate the model from the SDK API response, and `toCreateOption()`/`toEditOption()` methods to convert model to SDK request types.
+
+**Repository-scoped resources** store `repository` as `owner/repo` format string and have a `parseRepositoryName()` helper that splits it into owner and repo. The `owner` is stored as a separate computed attribute.
+
+**Set attributes** (e.g., scopes in access_token): Use `types.Set` in model, `schema.SetAttribute{ElementType: types.StringType}` in schema. Convert with `types.SetValueMust(types.StringType, vals)` and `types.SetNull(types.StringType)` for empty. Use `m.Field.ElementsAs(ctx, &slice, false)` to extract Go slices.
+
+**Logging**: Use `defer un(trace(ctx, "Create resource"))` pattern from helpers in `provider.go` (lines 322-329). Info logging with `tflog.Info(ctx, "message", map[string]any{...})`.
+
+**Error handling**: Status code switch on `res.StatusCode` with specific messages for 403 (forbidden), 404 (not found), 422 (validation), and a default case.
+
+**Import format** for repo-scoped resources: `owner:repo:identifier` parsed with `strings.Split(req.ID, ":")`.
+
+**Tests** use `resource.TestCase` with `Steps` containing `Config` + `ConfigStateChecks` (using `statecheck.ExpectKnownValue`). Import steps use `ImportStateIdFunc` to construct the import ID from state.
+
 ### Important Implementation Details
 
 - **Create-only attributes**: Attributes like `auto_init`, `gitignores`, `license` cannot be modified after creation. Changes force resource recreation. Use `planmodifier.RequiresReplace()` in schema.
@@ -133,6 +158,14 @@ Key SDK files for reference:
 - `org.go` — Organization API types and methods
 - `repository.go` — Repository API types and methods
 - `user.go` — User API types and methods
+- `repo_branch_protection.go` — Branch protection types and methods
+- `helper.go` — Helper functions (OptionalBool, OptionalString, OptionalInt64) for Edit option pointer fields
+
+### Forgejo SDK Patterns
+
+**Create vs Edit option structs**: Create options use plain value types (e.g., `bool`, `string`). Edit options use pointer types (e.g., `*bool`, `*string`) to support partial updates. The SDK provides helpers in `helper.go`: `OptionalBool(v bool) *bool`, `OptionalString(v string) *string`, `OptionalInt64(v int64) *int64`.
+
+**API methods follow a consistent pattern**: `Client.Create{Resource}(owner, repo, opt)`, `Client.Get{Resource}(owner, repo, identifier)`, `Client.Edit{Resource}(owner, repo, identifier, opt)`, `Client.Delete{Resource}(owner, repo, identifier)`. All return `(*Type, *Response, error)` (except Delete which returns `(*Response, error)`).
 
 The current version is **v2.2.0**. Check `go.mod` in the repository root for the exact pinned version.
 

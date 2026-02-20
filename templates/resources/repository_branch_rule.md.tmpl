@@ -1,0 +1,34 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}} ({{.Name}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+### Provider Configuration
+
+{{ tffile "examples/resources/forgejo_repository_branch_rule/provider.tf" }}
+
+### Basic Branch Rule
+
+{{ tffile "examples/resources/forgejo_repository_branch_rule/basic_branch_rule.tf" }}
+
+### Advanced Branch Rule (Full Protections)
+
+{{ tffile "examples/resources/forgejo_repository_branch_rule/advanced_branch_rule.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Repository branch rules can be imported using the repository owner, repository name, and the protected branch name pattern in the format `owner:repo:pattern`.
+
+```shell
+terraform import forgejo_repository_branch_rule.release my-org:my-repo:release/**
+```

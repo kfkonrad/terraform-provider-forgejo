@@ -115,8 +115,8 @@ Optional:
 
 ## Import
 
-Team can be imported using the team ID.
+Team can be imported using the organization name and team name separated by a colon. Format: `organization:team_name`
 
 ```shell
-terraform import forgejo_team.example 42
+terraform import forgejo_team.example my-org:developers
 ```

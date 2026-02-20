@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -103,7 +102,7 @@ func (r *teamMembershipResource) Create(ctx context.Context, req resource.Create
 	teamID := data.TeamID.ValueInt64()
 	username := data.Username.ValueString()
 
-	tflog.Info(ctx, "Add user to team", map[string]any{
+	tflog.Info(ctx, "Create team membership", map[string]any{
 		"team_id":  teamID,
 		"username": username,
 	})
@@ -111,32 +110,36 @@ func (r *teamMembershipResource) Create(ctx context.Context, req resource.Create
 	// Use Forgejo client to add user to team
 	res, err := r.client.AddTeamMember(teamID, username)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"User %s cannot be added to team %d (forbidden): %s",
-				username,
-				teamID,
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Team with id %d or user %s not found: %s",
-				teamID,
-				username,
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"User %s cannot be added to team %d (forbidden): %s",
+					username,
+					teamID,
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Team with id %d or user %s not found: %s",
+					teamID,
+					username,
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to add user to team", msg)
+		resp.Diagnostics.AddError("Unable to create team membership", msg)
 
 		return
 	}
@@ -162,7 +165,7 @@ func (r *teamMembershipResource) Read(ctx context.Context, req resource.ReadRequ
 	teamID := data.TeamID.ValueInt64()
 	username := data.Username.ValueString()
 
-	tflog.Info(ctx, "Get team member", map[string]any{
+	tflog.Info(ctx, "Read team membership", map[string]any{
 		"team_id":  teamID,
 		"username": username,
 	})
@@ -170,18 +173,23 @@ func (r *teamMembershipResource) Read(ctx context.Context, req resource.ReadRequ
 	// Use Forgejo client to get team member
 	_, res, err := r.client.GetTeamMember(teamID, username)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
+		var msg string
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
 
-		if res.StatusCode == 404 {
-			// Resource doesn't exist anymore, remove from state
-			resp.State.RemoveResource(ctx)
-			return
+			if res.StatusCode == 404 {
+				// Resource doesn't exist anymore, remove from state
+				resp.State.RemoveResource(ctx)
+				return
+			}
+
+			msg = fmt.Sprintf("Unknown error: %s", err)
 		}
-
-		msg := fmt.Sprintf("Unknown error: %s", err)
-		resp.Diagnostics.AddError("Unable to get team member", msg)
+		resp.Diagnostics.AddError("Unable to read team membership", msg)
 
 		return
 	}
@@ -218,7 +226,7 @@ func (r *teamMembershipResource) Delete(ctx context.Context, req resource.Delete
 	teamID := data.TeamID.ValueInt64()
 	username := data.Username.ValueString()
 
-	tflog.Info(ctx, "Remove user from team", map[string]any{
+	tflog.Info(ctx, "Delete team membership", map[string]any{
 		"team_id":  teamID,
 		"username": username,
 	})
@@ -226,71 +234,98 @@ func (r *teamMembershipResource) Delete(ctx context.Context, req resource.Delete
 	// Use Forgejo client to remove user from team
 	res, err := r.client.RemoveTeamMember(teamID, username)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"User %s cannot be removed from team %d (forbidden): %s",
-				username,
-				teamID,
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"Team member not found - team id: %d, username: %s: %s",
-				teamID,
-				username,
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"User %s cannot be removed from team %d (forbidden): %s",
+					username,
+					teamID,
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"Team member not found - team id: %d, username: %s: %s",
+					teamID,
+					username,
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to remove user from team", msg)
+		resp.Diagnostics.AddError("Unable to delete team membership", msg)
 
 		return
 	}
 }
 
-// ImportState imports the resource state from team_id:username format.
+// ImportState imports the resource state from organization:team_name:username format.
 func (r *teamMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	defer un(trace(ctx, "Import team membership resource"))
 
-	// ID format: team_id:username
+	// ID format: organization:team_name:username
 	parts := strings.Split(req.ID, ":")
-	if len(parts) != 2 {
+	if len(parts) != 3 {
 		resp.Diagnostics.AddError(
 			"Invalid import ID",
-			fmt.Sprintf("Expected format: team_id:username, got: %s", req.ID),
+			fmt.Sprintf("Expected format: organization:team_name:username, got: %s", req.ID),
 		)
 		return
 	}
 
-	teamIDStr := parts[0]
-	username := parts[1]
-
-	// Parse team ID
-	teamID, err := strconv.ParseInt(teamIDStr, 10, 64)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid team ID",
-			fmt.Sprintf("Team ID must be numeric, got: %s", teamIDStr),
-		)
-		return
-	}
+	org := parts[0]
+	teamName := parts[1]
+	username := parts[2]
 
 	tflog.Info(ctx, "Importing team membership", map[string]any{
-		"team_id":  teamID,
-		"username": username,
+		"organization": org,
+		"team_name":    teamName,
+		"username":     username,
 	})
 
+	// Search for the team by name in the organization
+	teams, res, err := r.client.SearchOrgTeams(org, &forgejo.SearchTeamsOptions{Query: teamName})
+	if err != nil {
+		if res != nil {
+			tflog.Error(ctx, "Error searching teams", map[string]any{
+				"status": res.Status,
+			})
+		}
+		resp.Diagnostics.AddError("Unable to import team membership", fmt.Sprintf("Error searching teams: %s", err))
+		return
+	}
+
+	// Find exact name match
+	var teamID int64
+	found := false
+	for _, t := range teams {
+		if t.Name == teamName {
+			teamID = t.ID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		resp.Diagnostics.AddError(
+			"Unable to import team membership",
+			fmt.Sprintf("No team with name %q found in organization %q", teamName, org),
+		)
+		return
+	}
+
 	// Verify the team member exists
-	_, res, err := r.client.GetTeamMember(teamID, username)
+	_, res, err = r.client.GetTeamMember(teamID, username)
 	if err != nil {
 		var msg string
 		if res != nil {

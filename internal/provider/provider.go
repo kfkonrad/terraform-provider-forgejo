@@ -287,8 +287,10 @@ func (p *forgejoProvider) DataSources(_ context.Context) []func() datasource.Dat
 	return []func() datasource.DataSource{
 		NewCollaboratorDataSource,
 		NewDeployKeyDataSource,
+		NewGPGKeyDataSource,
 		NewOrganizationDataSource,
 		NewRepositoryDataSource,
+		NewSSHKeyDataSource,
 		NewUserDataSource,
 	}
 }
@@ -299,11 +301,17 @@ func (p *forgejoProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewAccessTokenResource,
 		NewCollaboratorResource,
 		NewDeployKeyResource,
+		NewGPGKeyResource,
 		NewOrganizationActionSecretResource,
+		NewOrganizationActionVariableResource,
 		NewOrganizationResource,
 		NewRepositoryActionSecretResource,
+		NewRepositoryActionVariableResource,
+		NewRepositoryBranchRuleResource,
 		NewRepositoryResource,
+		NewRepositoryTagRuleResource,
 		NewRepositoryWebhookResource,
+		NewSSHKeyResource,
 		NewTeamMembershipResource,
 		NewTeamResource,
 		NewUserResource,

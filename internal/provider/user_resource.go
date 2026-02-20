@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -77,8 +78,8 @@ func (m *userResourceModel) from(u *forgejo.User) {
 	m.AvatarURL = types.StringValue(u.AvatarURL)
 	m.Language = types.StringValue(u.Language)
 	m.IsAdmin = types.BoolValue(u.IsAdmin)
-	m.LastLogin = types.StringValue(u.LastLogin.String())
-	m.Created = types.StringValue(u.Created.String())
+	m.LastLogin = types.StringValue(u.LastLogin.Format(time.RFC3339))
+	m.Created = types.StringValue(u.Created.Format(time.RFC3339))
 	m.Restricted = types.BoolValue(u.Restricted)
 	m.IsActive = types.BoolValue(u.IsActive)
 	m.ProhibitLogin = types.BoolValue(u.ProhibitLogin)
@@ -196,9 +197,6 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"created_at": schema.StringAttribute{
 				Description: "Time at which the user was created.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"restricted": schema.BoolAttribute{
 				Description: "Is the user restricted? Defaults to `false`.",
@@ -440,24 +438,28 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	// Use Forgejo client to create new user
 	_, res, err := r.client.AdminCreateUser(copts)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 403:
-			msg = fmt.Sprintf(
-				"User with name %s forbidden: %s",
-				data.Name.String(),
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 403:
+				msg = fmt.Sprintf(
+					"User with name %s forbidden: %s",
+					data.Name.String(),
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to create user", msg)
 
@@ -503,55 +505,67 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 		eopts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 403:
-			msg = fmt.Sprintf(
-				"User with name %s forbidden: %s",
-				data.Name.String(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"User with name %s not found: %s",
-				data.Name.String(),
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 403:
+				msg = fmt.Sprintf(
+					"User with name %s forbidden: %s",
+					data.Name.String(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"User with name %s not found: %s",
+					data.Name.String(),
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update user", msg)
 
 		return
 	}
 
+	tflog.Info(ctx, "Read user", map[string]any{
+		"name": data.Name.ValueString(),
+	})
+
 	// Use Forgejo client to fetch updated user
 	usr, res, err := r.client.GetUserInfo(data.Name.ValueString())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"User with name %s not found: %s",
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"User with name %s not found: %s",
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get user by name", msg)
+		resp.Diagnostics.AddError("Unable to read user", msg)
 
 		return
 	}
@@ -577,29 +591,33 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	tflog.Info(ctx, "Get user by name", map[string]any{
+	tflog.Info(ctx, "Read user", map[string]any{
 		"name": data.Name.ValueString(),
 	})
 
 	// Use Forgejo client to get user by name
 	usr, res, err := r.client.GetUserInfo(data.Name.ValueString())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"User with name %s not found: %s",
-				data.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"User with name %s not found: %s",
+					data.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get user by name", msg)
+		resp.Diagnostics.AddError("Unable to read user", msg)
 
 		return
 	}
@@ -674,55 +692,67 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		opts,
 	)
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 400:
-			msg = fmt.Sprintf("Generic error: %s", err)
-		case 403:
-			msg = fmt.Sprintf(
-				"User with name %s forbidden: %s",
-				plan.Name.String(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf(
-				"User with name %s not found: %s",
-				plan.Name.String(),
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 400:
+				msg = fmt.Sprintf("Generic error: %s", err)
+			case 403:
+				msg = fmt.Sprintf(
+					"User with name %s forbidden: %s",
+					plan.Name.String(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"User with name %s not found: %s",
+					plan.Name.String(),
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to update user", msg)
 
 		return
 	}
 
+	tflog.Info(ctx, "Read user", map[string]any{
+		"name": plan.Name.ValueString(),
+	})
+
 	// Use Forgejo client to fetch updated user
 	usr, res, err := r.client.GetUserInfo(plan.Name.ValueString())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 404:
-			msg = fmt.Sprintf(
-				"User with name %s not found: %s",
-				plan.Name.String(),
-				err,
-			)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 404:
+				msg = fmt.Sprintf(
+					"User with name %s not found: %s",
+					plan.Name.String(),
+					err,
+				)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
-		resp.Diagnostics.AddError("Unable to get user by name", msg)
+		resp.Diagnostics.AddError("Unable to read user", msg)
 
 		return
 	}
@@ -755,27 +785,32 @@ func (r *userResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	// Use Forgejo client to delete existing user
 	res, err := r.client.AdminDeleteUser(data.Name.ValueString())
 	if err != nil {
-		tflog.Error(ctx, "Error", map[string]any{
-			"status": res.Status,
-		})
-
 		var msg string
-		switch res.StatusCode {
-		case 403:
-			msg = fmt.Sprintf(
-				"User with name %s forbidden: %s",
-				data.Name.String(),
-				err,
-			)
-		case 404:
-			msg = fmt.Sprintf("User with name %s not found: %s",
-				data.Name.String(),
-				err,
-			)
-		case 422:
-			msg = fmt.Sprintf("Input validation error: %s", err)
-		default:
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		} else {
+			tflog.Error(ctx, "Error", map[string]any{
+				"status": res.Status,
+			})
+
+			switch res.StatusCode {
+			case 403:
+				msg = fmt.Sprintf(
+					"User with name %s forbidden: %s",
+					data.Name.String(),
+					err,
+				)
+			case 404:
+				msg = fmt.Sprintf(
+					"User with name %s not found: %s",
+					data.Name.String(),
+					err,
+				)
+			case 422:
+				msg = fmt.Sprintf("Input validation error: %s", err)
+			default:
+				msg = fmt.Sprintf("Unknown error: %s", err)
+			}
 		}
 		resp.Diagnostics.AddError("Unable to delete user", msg)
 
