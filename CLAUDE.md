@@ -86,7 +86,7 @@ terraform-provider-forgejo/
 1. Define schema in `Schema()` method (describes resource attributes and validation)
 2. Define Go model struct with `tfsdk` tags (maps schema to struct fields)
 3. Implement CRUD operations: `Create()`, `Read()`, `Update()`, `Delete()`
-4. Use Forgejo SDK (`codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2`) for API calls
+4. Use Forgejo SDK (`codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3`) for API calls
 5. Handle attribute changes and computed fields in `Plan()` method
 
 **Configuration & Authentication (`provider.go`):**
@@ -137,9 +137,9 @@ var (
 
 ## Dependencies & Go Version
 
-- **Go Version**: 1.24.0 (with toolchain 1.24.9)
+- **Go Version**: 1.25.0
 - **Core Dependencies**:
-  - `codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2` — Forgejo API client
+  - `codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3` — Forgejo API client
   - `github.com/hashicorp/terraform-plugin-framework` — Provider framework
   - `github.com/hashicorp/terraform-plugin-testing` — Acceptance testing framework
   - `github.com/hashicorp/terraform-plugin-log` — Logging
@@ -150,7 +150,7 @@ var (
 The Forgejo SDK source code is cached locally in the Go modules cache at:
 
 ```
-~/go/pkg/mod/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2@v2.2.0/
+~/go/pkg/mod/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3@v3.0.0/
 ```
 
 Key SDK files for reference:
@@ -167,7 +167,7 @@ Key SDK files for reference:
 
 **API methods follow a consistent pattern**: `Client.Create{Resource}(owner, repo, opt)`, `Client.Get{Resource}(owner, repo, identifier)`, `Client.Edit{Resource}(owner, repo, identifier, opt)`, `Client.Delete{Resource}(owner, repo, identifier)`. All return `(*Type, *Response, error)` (except Delete which returns `(*Response, error)`).
 
-The current version is **v2.2.0**. Check `go.mod` in the repository root for the exact pinned version.
+The current version is **v3.0.0**. Check `go.mod` in the repository root for the exact pinned version.
 
 ## Testing
 

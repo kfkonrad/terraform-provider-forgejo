@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -120,7 +120,8 @@ func (r *organizationActionVariableResource) Create(ctx context.Context, req res
 
 	// Generate API request body from plan
 	opts := forgejo.CreateVariableOption{
-		Value: data.Value.ValueString(),
+		Name: data.Name.ValueString(),
+		Data: data.Value.ValueString(),
 	}
 
 	// Validate API request body
@@ -134,7 +135,6 @@ func (r *organizationActionVariableResource) Create(ctx context.Context, req res
 	// Use Forgejo client to create new organization action variable
 	res, err := r.client.CreateOrgActionVariable(
 		data.Organization.ValueString(),
-		data.Name.ValueString(),
 		opts,
 	)
 	if err != nil {
@@ -252,9 +252,9 @@ func (r *organizationActionVariableResource) Update(ctx context.Context, req res
 	})
 
 	// Generate API request body from plan
-	opts := forgejo.UpdateVariableOption{
-		Name:  data.Name.ValueString(),
-		Value: data.Value.ValueString(),
+	opts := forgejo.CreateVariableOption{
+		Name: data.Name.ValueString(),
+		Data: data.Value.ValueString(),
 	}
 
 	// Validate API request body

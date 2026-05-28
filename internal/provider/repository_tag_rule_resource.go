@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -298,7 +298,22 @@ func (r *repositoryTagRuleResource) Read(ctx context.Context, req resource.ReadR
 			})
 
 			if res.StatusCode == 404 {
-				resp.State.RemoveResource(ctx)
+				// Forgejo v15 returns 404 instead of 403 for resources the token
+				// can't see; only drop state if the repo is still visible (rule
+				// genuinely gone), otherwise refuse to drop it (likely forbidden).
+				if _, repoRes, _ := r.client.GetRepo(owner, repo); repoRes != nil && repoRes.StatusCode == 200 {
+					resp.State.RemoveResource(ctx)
+					return
+				}
+				resp.Diagnostics.AddError(
+					"Unable to read repository tag rule",
+					fmt.Sprintf(
+						"Tag protection for repository %q returned 404, but the repository itself is not visible. "+
+							"This may be a permission issue rather than a deletion; refusing to drop state automatically. "+
+							"Verify access and re-import, or remove it from state if the repository was deleted.",
+						data.Repository.ValueString(),
+					),
+				)
 				return
 			}
 
