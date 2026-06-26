@@ -1,3 +1,66 @@
+## 0.11.0
+
+FEATURES:
+
+- **New Resource**: `forgejo_organization_runner` ([documentation](docs/resources/organization_runner.md))
+- **New Resource**: `forgejo_repository_runner` ([documentation](docs/resources/repository_runner.md))
+- **New Resource**: `forgejo_repository_label` ([documentation](docs/resources/repository_label.md))
+
+## 0.10.0 (February 20, 2026)
+
+FEATURES:
+
+- **New Resource**: `forgejo_ssh_key` ([documentation](docs/resources/ssh_key.md))
+- **New Data Source**: `forgejo_ssh_key` ([documentation](docs/data-sources/ssh_key.md))
+- **New Resource**: `forgejo_gpg_key` ([documentation](docs/resources/gpg_key.md))
+- **New Data Source**: `forgejo_gpg_key` ([documentation](docs/data-sources/gpg_key.md))
+- **New Resource**: `forgejo_repository_branch_rule` ([documentation](docs/resources/repository_branch_rule.md))
+- **New Resource**: `forgejo_repository_tag_rule` ([documentation](docs/resources/repository_tag_rule.md))
+- **New Resource**: `forgejo_organization_action_variable` ([documentation](docs/resources/organization_action_variable.md))
+- **New Resource**: `forgejo_repository_action_variable` ([documentation](docs/resources/repository_action_variable.md))
+
+ENHANCEMENTS:
+
+- `forgejo_repository`: allow archiving repositories on destroy instead of deleting them ([documentation](docs/resources/repository.md))
+- `forgejo_repository`: add `fast-forward-only` option to the default merge style validator
+- `forgejo_team`, `forgejo_team_membership`, `forgejo_collaborator`: simplify import IDs
+- Run acceptance tests against OpenTofu as well as Terraform, and against Terraform 1.14
+
+BUG FIXES:
+
+- Add nil-safety checks and standardize error messages across resources
+- Standardize on formatting temporal data in RFC3339 format
+- `forgejo_organization_action_variable`, `forgejo_repository_action_variable`: fix import
+- `forgejo_organization_action_secret`, `forgejo_repository_action_secret`: implement proper deletion
+- `forgejo_repository` (data source): simplify schema for consistency (**breaking change** — users upgrading will need to update their configurations) ([documentation](docs/data-sources/repository.md))
+
+DEPENDENCIES:
+
+- Bump dependencies
+
+## 0.9.0 (February 11, 2026)
+
+FEATURES:
+
+- **New Resource**: `forgejo_repository_webhook` ([documentation](docs/resources/repository_webhook.md))
+
+ENHANCEMENTS:
+
+- `forgejo_repository_webhook`: use named events instead of a list
+- `forgejo_access_token`: switch `scopes` from a list to a set
+- Improve documentation of multiple resources
+
+## 0.8.0 (December 11, 2025)
+
+ENHANCEMENTS:
+
+- `forgejo_user`: add import support ([documentation](docs/resources/user.md))
+- `forgejo_collaborator`: add import support ([documentation](docs/resources/collaborator.md))
+
+BUG FIXES:
+
+- Fix integration tests
+
 ## 0.7.0
 
 ENHANCEMENTS:
