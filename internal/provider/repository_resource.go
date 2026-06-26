@@ -885,9 +885,15 @@ func (r *repositoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				Description: "Migrate / clone from URL.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplaceIfConfigured(),
+					// clone_addr is a create-only attribute whose value is the
+					// repository's stored original URL. When it is dropped from
+					// configuration after a migration, preserve the prior state
+					// value instead of reverting to a default; otherwise the
+					// planned value ("") would not match the URL the provider
+					// reads back, producing an "inconsistent result" error.
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"auth_token": schema.StringAttribute{
@@ -1164,6 +1170,10 @@ func (r *repositoryResource) Create(ctx context.Context, req resource.CreateRequ
 		// Use Forgejo client to create new repository migration
 		rep, res, err = r.client.MigrateRepo(copts)
 	} else {
+		// Not a migration: clone_addr no longer has a schema default, so set
+		// it explicitly to satisfy the computed attribute.
+		data.CloneAddr = types.StringValue("")
+
 		tflog.Info(ctx, "Create repository", map[string]any{
 			"owner":          data.Owner.ValueString(),
 			"name":           data.Name.ValueString(),

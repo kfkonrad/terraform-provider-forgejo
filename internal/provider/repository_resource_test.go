@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
@@ -1554,6 +1555,69 @@ import {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("updated_at"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("watchers_count"), knownvalue.Int64Exact(1)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("website"), knownvalue.StringExact("")),
+				},
+			},
+			// Delete testing automatically occurs in TestCase
+		},
+	})
+}
+
+// TestAccRepositoryResource_CloneAddrDroppedFromConfig is a regression test for
+// a "provider produced inconsistent result after apply" error on the clone_addr
+// attribute.
+//
+// clone_addr is a create-only attribute that mirrors the repository's stored
+// original URL. It used to carry a static "" default, so dropping it from the
+// configuration after a migration made the plan resolve it to "" while the
+// provider read the real URL back from the API. The mismatch aborted the apply:
+//
+//	Error: Provider produced inconsistent result after apply
+//	  .clone_addr: was cty.StringVal(""), but now cty.StringVal("https://...")
+//
+// The fix replaces the default with a UseStateForUnknown plan modifier so the
+// prior value is retained when the attribute is omitted. This test migrates a
+// repository and then applies a configuration that no longer sets clone_addr,
+// asserting the apply succeeds and the value is preserved. Without the fix, the
+// second step fails with the inconsistent-result error above.
+func TestAccRepositoryResource_CloneAddrDroppedFromConfig(t *testing.T) {
+	cloneAddr := "https://github.com/svalabs/terraform-provider-forgejo"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create testing (migrate / clone repo)
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name       = "tftest"
+	clone_addr = "` + cloneAddr + `"
+	mirror     = false
+}`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("name"), knownvalue.StringExact("tftest")),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact(cloneAddr)),
+				},
+			},
+			// Update testing (clone_addr dropped from config, unrelated change)
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name        = "tftest"
+	description = "Purely for testing..."
+}`,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						// In-place update, not a replace: clone_addr being absent
+						// must not force replacement and must keep its value.
+						plancheck.ExpectResourceAction("forgejo_repository.test", plancheck.ResourceActionUpdate),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("description"), knownvalue.StringExact("Purely for testing...")),
+					// The regression assertion: clone_addr is retained from prior
+					// state even though it is no longer set in configuration.
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact(cloneAddr)),
 				},
 			},
 			// Delete testing automatically occurs in TestCase

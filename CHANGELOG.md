@@ -1,10 +1,18 @@
-## 0.11.0
+## 0.11.0 (June 29, 2026)
 
 FEATURES:
 
 - **New Resource**: `forgejo_organization_runner` ([documentation](docs/resources/organization_runner.md))
 - **New Resource**: `forgejo_repository_runner` ([documentation](docs/resources/repository_runner.md))
 - **New Resource**: `forgejo_repository_label` ([documentation](docs/resources/repository_label.md))
+
+BUG FIXES:
+
+- `forgejo_repository`: preserve `clone_addr` when it is dropped from configuration after a migration, fixing a "provider produced inconsistent result after apply" error ([documentation](docs/resources/repository.md))
+
+DEPENDENCIES:
+
+- Upgrade Forgejo SDK to v3 and target Forgejo v15
 
 ## 0.10.0 (February 20, 2026)
 
