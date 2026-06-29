@@ -73,8 +73,8 @@ jobs:
       matrix:
         # list whatever Terraform versions here you would like to support
         terraform:
-          - "1.13.*"
           - "1.14.*"
+          - "1.15.*"
 
     steps:
       - name: Checkout repository
@@ -138,8 +138,8 @@ jobs:
       matrix:
         # list whatever OpenTofu versions here you would like to support
         opentofu:
-          - "1.10.*"
           - "1.11.*"
+          - "1.12.*"
 
     steps:
       - name: Checkout repository
@@ -156,6 +156,9 @@ jobs:
         with:
           tofu_version: ${{ matrix.opentofu }}
           tofu_wrapper: false
+      - name: Resolve OpenTofu binary path
+        id: tofu-path
+        run: echo "path=$(which tofu)" >> "$GITHUB_OUTPUT"
       - name: Set up Docker Compose
         uses: docker/setup-compose-action@v1
 
@@ -188,7 +191,12 @@ jobs:
       - name: Run acceptance tests
         env:
           TF_ACC: "1"
-          TF_ACC_TERRAFORM_PATH: ${{ steps.setup-opentofu.outputs.tofu_path }}
+          TF_ACC_TERRAFORM_PATH: ${{ steps.tofu-path.outputs.path }}
+          # terraform-plugin-testing hardcodes the Terraform registry host when
+          # building provider source addresses; point it at OpenTofu's registry
+          # so generated config doesn't use the legacy "-" namespace that tofu rejects.
+          TF_ACC_PROVIDER_HOST: registry.opentofu.org
+          TF_ACC_PROVIDER_NAMESPACE: hashicorp
           FORGEJO_USERNAME: tfadmin
           FORGEJO_PASSWORD: ${{ steps.admin.outputs.password }}
         run: go test -v -cover ./internal/provider/

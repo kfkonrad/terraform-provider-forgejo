@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -305,10 +305,13 @@ func (p *forgejoProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewOrganizationActionSecretResource,
 		NewOrganizationActionVariableResource,
 		NewOrganizationResource,
+		NewOrganizationRunnerResource,
 		NewRepositoryActionSecretResource,
 		NewRepositoryActionVariableResource,
 		NewRepositoryBranchRuleResource,
+		NewRepositoryLabelResource,
 		NewRepositoryResource,
+		NewRepositoryRunnerResource,
 		NewRepositoryTagRuleResource,
 		NewRepositoryWebhookResource,
 		NewSSHKeyResource,

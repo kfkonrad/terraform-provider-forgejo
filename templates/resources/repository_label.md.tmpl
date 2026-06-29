@@ -1,0 +1,34 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}} ({{.Name}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+### Provider Configuration
+
+{{ tffile "examples/resources/forgejo_repository_label/provider.tf" }}
+
+### Basic Label
+
+{{ tffile "examples/resources/forgejo_repository_label/basic_label.tf" }}
+
+### Triage Labels
+
+{{ tffile "examples/resources/forgejo_repository_label/advanced_label.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Repository labels can be imported using the repository owner, repository name, and the numeric label ID in the format `owner:repo:id`.
+
+```shell
+terraform import forgejo_repository_label.bug my-org:my-repo:42
+```

@@ -26,7 +26,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -42,7 +42,7 @@ type repositoryResource struct {
 }
 
 // repositoryResourceModel maps the resource schema data.
-// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2#Repository
+// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3#Repository
 type repositoryResourceModel struct {
 	ID                        types.Int64  `tfsdk:"id"`
 	Owner                     types.String `tfsdk:"owner"`
@@ -217,7 +217,7 @@ func (m *repositoryResourceModel) to(o *forgejo.EditRepoOption) {
 	o.DefaultMergeStyle = &ms
 }
 
-// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2#Permission
+// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3#Permission
 type repositoryResourcePermissions struct {
 	Admin types.Bool `tfsdk:"admin"`
 	Push  types.Bool `tfsdk:"push"`
@@ -260,7 +260,7 @@ func (m *repositoryResourceModel) permissionsFrom(ctx context.Context, p *forgej
 	return diags
 }
 
-// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2#InternalTracker
+// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3#InternalTracker
 type repositoryResourceInternalTracker struct {
 	EnableTimeTracker                types.Bool `tfsdk:"enable_time_tracker"`
 	AllowOnlyContributorsToTrackTime types.Bool `tfsdk:"allow_only_contributors_to_track_time"`
@@ -324,7 +324,7 @@ func (m *repositoryResourceModel) internalTrackerTo(ctx context.Context, o *forg
 	return diags
 }
 
-// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2#ExternalTracker
+// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3#ExternalTracker
 type repositoryResourceExternalTracker struct {
 	ExternalTrackerURL    types.String `tfsdk:"external_tracker_url"`
 	ExternalTrackerFormat types.String `tfsdk:"external_tracker_format"`
@@ -388,7 +388,7 @@ func (m *repositoryResourceModel) externalTrackerTo(ctx context.Context, o *forg
 	return diags
 }
 
-// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2#ExternalWiki
+// https://pkg.go.dev/codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3#ExternalWiki
 type repositoryResourceExternalWiki struct {
 	ExternalWikiURL types.String `tfsdk:"external_wiki_url"`
 }
@@ -885,9 +885,15 @@ func (r *repositoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				Description: "Migrate / clone from URL.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplaceIfConfigured(),
+					// clone_addr is a create-only attribute whose value is the
+					// repository's stored original URL. When it is dropped from
+					// configuration after a migration, preserve the prior state
+					// value instead of reverting to a default; otherwise the
+					// planned value ("") would not match the URL the provider
+					// reads back, producing an "inconsistent result" error.
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"auth_token": schema.StringAttribute{
@@ -1164,6 +1170,10 @@ func (r *repositoryResource) Create(ctx context.Context, req resource.CreateRequ
 		// Use Forgejo client to create new repository migration
 		rep, res, err = r.client.MigrateRepo(copts)
 	} else {
+		// Not a migration: clone_addr no longer has a schema default, so set
+		// it explicitly to satisfy the computed attribute.
+		data.CloneAddr = types.StringValue("")
+
 		tflog.Info(ctx, "Create repository", map[string]any{
 			"owner":          data.Owner.ValueString(),
 			"name":           data.Name.ValueString(),

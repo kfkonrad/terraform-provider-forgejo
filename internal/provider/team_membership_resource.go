@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -182,8 +182,22 @@ func (r *teamMembershipResource) Read(ctx context.Context, req resource.ReadRequ
 			})
 
 			if res.StatusCode == 404 {
-				// Resource doesn't exist anymore, remove from state
-				resp.State.RemoveResource(ctx)
+				// Forgejo v15 returns 404 instead of 403 for resources the token
+				// can't see; only drop state if the team is still visible
+				// (membership genuinely gone), else refuse (likely forbidden).
+				if _, teamRes, _ := r.client.GetTeam(teamID); teamRes != nil && teamRes.StatusCode == 200 {
+					resp.State.RemoveResource(ctx)
+					return
+				}
+				resp.Diagnostics.AddError(
+					"Unable to read team membership",
+					fmt.Sprintf(
+						"Team membership for team %d returned 404, but the team itself is not visible. "+
+							"This may be a permission issue rather than a removal; refusing to drop state automatically. "+
+							"Verify access and re-import, or remove it from state if the membership was deleted.",
+						teamID,
+					),
+				)
 				return
 			}
 
