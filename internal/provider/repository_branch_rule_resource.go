@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -25,6 +26,7 @@ var (
 	_ resource.Resource                = &repositoryBranchRuleResource{}
 	_ resource.ResourceWithConfigure   = &repositoryBranchRuleResource{}
 	_ resource.ResourceWithImportState = &repositoryBranchRuleResource{}
+	_ resource.ResourceWithModifyPlan  = &repositoryBranchRuleResource{}
 )
 
 // repositoryBranchRuleResource is the resource implementation.
@@ -293,7 +295,7 @@ func (r *repositoryBranchRuleResource) Schema(_ context.Context, _ resource.Sche
 				Default:     booldefault.StaticBool(false),
 			},
 			"enable_push_whitelist": schema.BoolAttribute{
-				Description: "Whitelist restricted push. Defaults to `false`.",
+				Description: "Whitelist restricted push. Requires `enable_push` to be `true`. Defaults to `false`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -311,7 +313,7 @@ func (r *repositoryBranchRuleResource) Schema(_ context.Context, _ resource.Sche
 				Computed:    true,
 			},
 			"push_whitelist_deploy_keys": schema.BoolAttribute{
-				Description: "Whitelist deploy keys with write access to push. Defaults to `false`.",
+				Description: "Whitelist deploy keys with write access to push. Requires `enable_push` and `enable_push_whitelist` to be `true`. Defaults to `false`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -421,6 +423,54 @@ func (r *repositoryBranchRuleResource) Schema(_ context.Context, _ resource.Sche
 				Default:     stringdefault.StaticString(""),
 			},
 		},
+	}
+}
+
+// ModifyPlan rejects attribute combinations that Forgejo silently normalizes
+// server-side. Forgejo persists the push whitelist as
+// `enable_push && enable_push_whitelist` and the deploy key whitelist as
+// `enable_push && enable_push_whitelist && push_whitelist_deploy_keys`. Sending
+// them without `enable_push` makes the API return values that differ from the
+// plan, which Terraform reports as "Provider produced inconsistent result after
+// apply".
+func (r *repositoryBranchRuleResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// The plan is null when the resource is being destroyed.
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan repositoryBranchRuleResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if plan.EnablePush.IsUnknown() || plan.EnablePushWhitelist.IsUnknown() {
+		return
+	}
+
+	if plan.EnablePushWhitelist.ValueBool() && !plan.EnablePush.ValueBool() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("enable_push_whitelist"),
+			"Invalid Attribute Combination",
+			"Attribute \"enable_push_whitelist\" can only be enabled when \"enable_push\" is enabled.",
+		)
+
+		return
+	}
+
+	if plan.PushWhitelistDeployKeys.IsUnknown() {
+		return
+	}
+
+	if plan.PushWhitelistDeployKeys.ValueBool() && !plan.EnablePushWhitelist.ValueBool() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("push_whitelist_deploy_keys"),
+			"Invalid Attribute Combination",
+			"Attribute \"push_whitelist_deploy_keys\" can only be enabled when both \"enable_push\" and "+
+				"\"enable_push_whitelist\" are enabled.",
+		)
 	}
 }
 

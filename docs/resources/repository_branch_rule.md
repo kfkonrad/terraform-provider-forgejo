@@ -118,12 +118,12 @@ resource "forgejo_repository_branch_rule" "strict" {
 - `enable_approvals_whitelist` (Boolean) Restrict approvals to whitelisted users or teams. Defaults to `false`.
 - `enable_merge_whitelist` (Boolean) Enable merge whitelist. Defaults to `false`.
 - `enable_push` (Boolean) Enable push to the protected branch. Defaults to `false`.
-- `enable_push_whitelist` (Boolean) Whitelist restricted push. Defaults to `false`.
+- `enable_push_whitelist` (Boolean) Whitelist restricted push. Requires `enable_push` to be `true`. Defaults to `false`.
 - `enable_status_check` (Boolean) Enable status check. Defaults to `false`.
 - `merge_whitelist_teams` (Set of String) Whitelisted teams for merging.
 - `merge_whitelist_usernames` (Set of String) Whitelisted users for merging.
 - `protected_file_patterns` (String) Protected file patterns (semicolon-separated glob patterns). Defaults to `""`.
-- `push_whitelist_deploy_keys` (Boolean) Whitelist deploy keys with write access to push. Defaults to `false`.
+- `push_whitelist_deploy_keys` (Boolean) Whitelist deploy keys with write access to push. Requires `enable_push` and `enable_push_whitelist` to be `true`. Defaults to `false`.
 - `push_whitelist_teams` (Set of String) Whitelisted teams for pushing.
 - `push_whitelist_usernames` (Set of String) Whitelisted users for pushing.
 - `require_signed_commits` (Boolean) Require signed commits. Defaults to `false`.

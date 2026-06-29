@@ -2,6 +2,7 @@ package provider_test
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -164,6 +165,50 @@ resource "forgejo_repository_branch_rule" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository_branch_rule.test", tfjsonpath.New("protected_branch_pattern"), knownvalue.StringExact("release/**")),
 					statecheck.ExpectKnownValue("forgejo_repository_branch_rule.test", tfjsonpath.New("enable_push"), knownvalue.Bool(true)),
 				},
+			},
+		},
+	})
+}
+
+func TestAccRepositoryBranchRuleResource_PushWhitelistRequiresEnablePush(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Forgejo stores the push whitelist as `enable_push && enable_push_whitelist`,
+			// so this combination must be rejected at plan time.
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name      = "test_branch_rule_whitelist_repo"
+	auto_init = true
+}
+resource "forgejo_repository_branch_rule" "test" {
+	repository               = forgejo_repository.test.full_name
+	protected_branch_pattern = "main"
+	enable_push              = false
+	enable_push_whitelist    = true
+}
+`,
+				// Terraform hard-wraps diagnostic detail, so match across arbitrary whitespace.
+				ExpectError: regexp.MustCompile(`"enable_push_whitelist"\s+can\s+only\s+be\s+enabled\s+when\s+"enable_push"`),
+			},
+			// The deploy key whitelist has the same dependency.
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name      = "test_branch_rule_whitelist_repo"
+	auto_init = true
+}
+resource "forgejo_repository_branch_rule" "test" {
+	repository                 = forgejo_repository.test.full_name
+	protected_branch_pattern   = "main"
+	enable_push                = true
+	enable_push_whitelist      = false
+	push_whitelist_deploy_keys = true
+}
+`,
+				ExpectError: regexp.MustCompile(`"push_whitelist_deploy_keys"\s+can\s+only\s+be\s+enabled\s+when\s+both`),
 			},
 		},
 	})
