@@ -1,3 +1,9 @@
+## 0.11.1 (August 28, 2026)
+
+BUG FIXES:
+
+- `forgejo_repository_branch_rule`: reject `enable_push_whitelist` without `enable_push` (and `push_whitelist_deploy_keys` without `enable_push_whitelist`) at plan time. Forgejo stores these as `enable_push && enable_push_whitelist`, so the previous behaviour caused a "provider produced inconsistent result after apply" error ([documentation](docs/resources/repository_branch_rule.md))
+
 ## 0.11.0 (June 29, 2026)
 
 FEATURES:
