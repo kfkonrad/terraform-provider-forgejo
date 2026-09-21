@@ -23,3 +23,11 @@ resource "forgejo_access_token" "this" {
   name     = "my_api_token"
   scopes   = ["repo", "write:org"]
 }
+
+# Access token limited to specific repositories
+resource "forgejo_access_token" "scoped" {
+  username     = forgejo_user.test.username
+  name         = "my_scoped_token"
+  scopes       = ["read:repository"]
+  repositories = ["testuser/some_repo"]
+}

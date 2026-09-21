@@ -2,9 +2,14 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -27,16 +32,50 @@ var (
 // accessTokenResource is the resource implementation.
 type accessTokenResource struct {
 	client *forgejo.Client
+	api    *apiClient
 }
 
 // accessTokenResourceModel maps the resource schema data.
 type accessTokenResourceModel struct {
-	ID       types.Int64  `tfsdk:"id"`
-	Name     types.String `tfsdk:"name"`
-	Scopes   types.Set    `tfsdk:"scopes"`
-	Token    types.String `tfsdk:"token"`
-	Username types.String `tfsdk:"username"`
+	ID           types.Int64  `tfsdk:"id"`
+	Name         types.String `tfsdk:"name"`
+	Scopes       types.Set    `tfsdk:"scopes"`
+	Repositories types.Set    `tfsdk:"repositories"`
+	Token        types.String `tfsdk:"token"`
+	Username     types.String `tfsdk:"username"`
 }
+
+// accessToken mirrors the API's AccessToken including the `repositories`
+// field, which the SDK does not model yet.
+type accessToken struct {
+	ID           int64            `json:"id"`
+	Name         string           `json:"name"`
+	Token        string           `json:"sha1"`
+	Scopes       []string         `json:"scopes"`
+	Repositories []repositoryMeta `json:"repositories"`
+}
+
+type repositoryMeta struct {
+	ID       int64  `json:"id"`
+	Owner    string `json:"owner"`
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+}
+
+// repoTarget is the API's RepoTargetOption.
+type repoTarget struct {
+	Owner string `json:"owner"`
+	Name  string `json:"name"`
+}
+
+// createAccessTokenOption mirrors the API's CreateAccessTokenOption.
+type createAccessTokenOption struct {
+	Name         string       `json:"name"`
+	Scopes       []string     `json:"scopes"`
+	Repositories []repoTarget `json:"repositories,omitempty"`
+}
+
+var repoFullNameRegexp = regexp.MustCompile(`^[^/\s]+/[^/\s]+$`)
 
 // Metadata returns the resource type name.
 func (r *accessTokenResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -92,6 +131,22 @@ func (r *accessTokenResource) Schema(_ context.Context, _ resource.SchemaRequest
 					setplanmodifier.RequiresReplace(),
 				},
 			},
+			"repositories": schema.SetAttribute{
+				Description: "Set of repositories (`owner/name`) the token is limited to. " +
+					"When unset, the token has access to every repository the user can access. " +
+					"Requires Forgejo 15 or newer.",
+				ElementType: types.StringType,
+				Optional:    true,
+				Validators: []validator.Set{
+					setvalidator.SizeAtLeast(1),
+					setvalidator.ValueStringsAre(
+						stringvalidator.RegexMatches(repoFullNameRegexp, "must be of the form owner/name"),
+					),
+				},
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.RequiresReplace(),
+				},
+			},
 			"token": schema.StringAttribute{
 				Description: "The actual access token value. This is only available when the token is first created and cannot be retrieved later.",
 				Computed:    true,
@@ -115,12 +170,12 @@ func (r *accessTokenResource) Configure(_ context.Context, req resource.Configur
 		return
 	}
 
-	client, ok := req.ProviderData.(*forgejo.Client)
+	client, ok := req.ProviderData.(*providerData)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
 			fmt.Sprintf(
-				"Expected *forgejo.Client, got: %T. Please report this issue to the provider developers.",
+				"Expected *providerData, got: %T. Please report this issue to the provider developers.",
 				req.ProviderData,
 			),
 		)
@@ -128,7 +183,8 @@ func (r *accessTokenResource) Configure(_ context.Context, req resource.Configur
 		return
 	}
 
-	r.client = client
+	r.client = client.Client
+	r.api = client.api
 }
 
 // Create creates the resource and sets the initial Terraform state.
@@ -148,38 +204,47 @@ func (r *accessTokenResource) Create(ctx context.Context, req resource.CreateReq
 		"name": data.Name.ValueString(),
 	})
 
-	// Convert scopes from Terraform types to SDK types
-	var scopesList []types.String
-	diags = data.Scopes.ElementsAs(ctx, &scopesList, false)
+	var scopes []string
+	diags = data.Scopes.ElementsAs(ctx, &scopes, false)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	scopes := make([]forgejo.AccessTokenScope, len(scopesList))
-	for i, s := range scopesList {
-		scopes[i] = forgejo.AccessTokenScope(s.ValueString())
+	var repoNames []string
+	if !data.Repositories.IsNull() {
+		diags = data.Repositories.ElementsAs(ctx, &repoNames, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 
-	// Build create option - username is required so we always have it
-	username := data.Username.ValueString()
-	opt := forgejo.CreateAccessTokenOption{
+	opt := createAccessTokenOption{
 		Name:   data.Name.ValueString(),
 		Scopes: scopes,
 	}
+	for _, full := range repoNames {
+		owner, name, _ := strings.Cut(full, "/")
+		opt.Repositories = append(opt.Repositories, repoTarget{Owner: owner, Name: name})
+	}
 
-	// Use Forgejo client to create access token
-	token, res, err := r.client.CreateAccessToken(username, opt)
+	// The SDK's CreateAccessToken does not know `repositories`, so call the
+	// API directly. Username is required so we always have it.
+	username := data.Username.ValueString()
+	var token accessToken
+	err := r.api.do(ctx, "POST", fmt.Sprintf("/users/%s/tokens", url.PathEscape(username)), opt, &token)
 	if err != nil {
 		var msg string
-		if res == nil {
+		var apiErr *apiError
+		if !errors.As(err, &apiErr) {
 			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
-				"status": res.Status,
+				"status": apiErr.Status,
 			})
 
-			switch res.StatusCode {
+			switch apiErr.StatusCode {
 			case 400:
 				msg = fmt.Sprintf("Invalid token configuration: %s", err)
 			case 403:
@@ -198,7 +263,7 @@ func (r *accessTokenResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Map response to model
-	data.from(token)
+	data.from(&token)
 
 	// Save data into Terraform state
 	diags = resp.State.Set(ctx, &data)
@@ -224,22 +289,21 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 		"id": tokenID,
 	})
 
-	// Username is required, so we always know which user's tokens to list
+	// Username is required, so we always know which user's tokens to list.
+	// Listed directly instead of via the SDK to get `repositories` back.
 	username := data.Username.ValueString()
-	listOpts := forgejo.ListAccessTokensOptions{}
-
-	// Use Forgejo client to list tokens for the specified user
-	tokens, res, err := r.client.ListAccessTokens(username, listOpts)
+	tokens, err := r.listAccessTokens(ctx, username)
 	if err != nil {
 		var msg string
-		if res == nil {
+		var apiErr *apiError
+		if !errors.As(err, &apiErr) {
 			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
-				"status": res.Status,
+				"status": apiErr.Status,
 			})
 
-			switch res.StatusCode {
+			switch apiErr.StatusCode {
 			case 401:
 				msg = fmt.Sprintf("Unauthorized: authentication required to list access tokens: %s", err)
 			case 403:
@@ -254,7 +318,7 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Find token by ID
-	var foundToken *forgejo.AccessToken
+	var foundToken *accessToken
 	for _, t := range tokens {
 		if t.ID == tokenID {
 			foundToken = t
@@ -350,8 +414,25 @@ func (r *accessTokenResource) Delete(ctx context.Context, req resource.DeleteReq
 	}
 }
 
-// from converts a Forgejo AccessToken to the resource model.
-func (m *accessTokenResourceModel) from(t *forgejo.AccessToken) {
+// listAccessTokens returns all access tokens of a user, following pagination.
+func (r *accessTokenResource) listAccessTokens(ctx context.Context, username string) ([]*accessToken, error) {
+	const pageSize = 50
+	var all []*accessToken
+	for page := 1; ; page++ {
+		var tokens []*accessToken
+		path := fmt.Sprintf("/users/%s/tokens?page=%d&limit=%d", url.PathEscape(username), page, pageSize)
+		if err := r.api.do(ctx, "GET", path, nil, &tokens); err != nil {
+			return nil, err
+		}
+		all = append(all, tokens...)
+		if len(tokens) < pageSize {
+			return all, nil
+		}
+	}
+}
+
+// from converts an API access token to the resource model.
+func (m *accessTokenResourceModel) from(t *accessToken) {
 	m.ID = types.Int64Value(t.ID)
 	m.Name = types.StringValue(t.Name)
 
@@ -360,12 +441,23 @@ func (m *accessTokenResourceModel) from(t *forgejo.AccessToken) {
 	if len(t.Scopes) > 0 {
 		scopeValues := make([]attr.Value, len(t.Scopes))
 		for i, scope := range t.Scopes {
-			scopeValues[i] = types.StringValue(string(scope))
+			scopeValues[i] = types.StringValue(scope)
 		}
 		m.Scopes = types.SetValueMust(types.StringType, scopeValues)
 	} else {
 		// No scopes returned
 		m.Scopes = types.SetNull(types.StringType)
+	}
+
+	// Repositories is null when the token is not limited to specific repositories
+	if len(t.Repositories) > 0 {
+		repoValues := make([]attr.Value, len(t.Repositories))
+		for i, repo := range t.Repositories {
+			repoValues[i] = types.StringValue(repo.FullName)
+		}
+		m.Repositories = types.SetValueMust(types.StringType, repoValues)
+	} else {
+		m.Repositories = types.SetNull(types.StringType)
 	}
 
 	// Token value is only available on creation (API returns empty on subsequent reads)
