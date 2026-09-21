@@ -92,12 +92,12 @@ func (d *deployKeyDataSource) Configure(_ context.Context, req datasource.Config
 		return
 	}
 
-	client, ok := req.ProviderData.(*forgejo.Client)
+	client, ok := req.ProviderData.(*providerData)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
 			fmt.Sprintf(
-				"Expected *forgejo.Client, got: %T. Please report this issue to the provider developers.",
+				"Expected *providerData, got: %T. Please report this issue to the provider developers.",
 				req.ProviderData,
 			),
 		)
@@ -105,7 +105,7 @@ func (d *deployKeyDataSource) Configure(_ context.Context, req datasource.Config
 		return
 	}
 
-	d.client = client
+	d.client = client.Client
 }
 
 // Read refreshes the Terraform state with the latest data.

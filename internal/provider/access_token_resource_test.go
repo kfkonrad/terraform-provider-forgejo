@@ -1,6 +1,7 @@
 package provider_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -169,6 +170,77 @@ resource "forgejo_access_token" "test" {
 				},
 			},
 			// Delete testing automatically occurs in TestCase
+		},
+	})
+}
+
+func TestAccAccessTokenResource_WithRepositories(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheckAccessToken(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create a token limited to a single repository
+			{
+				Config: providerConfig + `
+resource "forgejo_organization" "test" {
+	name = "token_repos_org"
+}
+
+resource "forgejo_repository" "test" {
+	owner = forgejo_organization.test.name
+	name  = "token_repos_repo"
+}
+
+resource "forgejo_user" "test" {
+	login    = "token_repos_user"
+	email    = "token_repos@localhost.localdomain"
+	password = "passw0rd"
+}
+
+resource "forgejo_collaborator" "test" {
+	repository_id = forgejo_repository.test.id
+	user          = forgejo_user.test.login
+	permission    = "read"
+}
+
+resource "forgejo_access_token" "test" {
+	username     = forgejo_user.test.login
+	name         = "test-token-repos"
+	scopes       = ["read:repository"]
+	repositories = ["${forgejo_repository.test.full_name}"]
+
+	depends_on = [forgejo_collaborator.test]
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("token"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("forgejo_access_token.test", tfjsonpath.New("repositories"), knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact("token_repos_org/token_repos_repo"),
+					})),
+				},
+			},
+			// Delete testing automatically occurs in TestCase
+		},
+	})
+}
+
+func TestAccAccessTokenResource_InvalidRepository(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheckAccessToken(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + `
+resource "forgejo_access_token" "test" {
+	username     = "tfadmin"
+	name         = "test-token-invalid-repo"
+	scopes       = ["read:repository"]
+	repositories = ["no-slash"]
+}
+`,
+				ExpectError: regexp.MustCompile("must be of the form owner/name"),
+			},
 		},
 	})
 }

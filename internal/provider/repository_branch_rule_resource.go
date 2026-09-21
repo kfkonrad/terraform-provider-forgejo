@@ -480,12 +480,12 @@ func (r *repositoryBranchRuleResource) Configure(_ context.Context, req resource
 		return
 	}
 
-	client, ok := req.ProviderData.(*forgejo.Client)
+	client, ok := req.ProviderData.(*providerData)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
 			fmt.Sprintf(
-				"Expected *forgejo.Client, got: %T. Please report this issue to the provider developers.",
+				"Expected *providerData, got: %T. Please report this issue to the provider developers.",
 				req.ProviderData,
 			),
 		)
@@ -493,7 +493,7 @@ func (r *repositoryBranchRuleResource) Configure(_ context.Context, req resource
 		return
 	}
 
-	r.client = client
+	r.client = client.Client
 }
 
 // Create creates the resource and sets the initial Terraform state.

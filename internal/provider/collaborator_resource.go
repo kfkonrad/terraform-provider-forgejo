@@ -84,12 +84,12 @@ func (r *collaboratorResource) Configure(_ context.Context, req resource.Configu
 		return
 	}
 
-	client, ok := req.ProviderData.(*forgejo.Client)
+	client, ok := req.ProviderData.(*providerData)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
 			fmt.Sprintf(
-				"Expected *forgejo.Client, got: %T. Please report this issue to the provider developers.",
+				"Expected *providerData, got: %T. Please report this issue to the provider developers.",
 				req.ProviderData,
 			),
 		)
@@ -97,7 +97,7 @@ func (r *collaboratorResource) Configure(_ context.Context, req resource.Configu
 		return
 	}
 
-	r.client = client
+	r.client = client.Client
 }
 
 // ImportState implements resource.ResourceWithImportState.

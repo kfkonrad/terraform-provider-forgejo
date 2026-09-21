@@ -1,3 +1,13 @@
+## 0.12.0 (September 21, 2026)
+
+FEATURES:
+
+- `forgejo_access_token`: new optional `repositories` attribute to limit a token to specific repositories (`owner/name`). Requires Forgejo 15 or newer ([documentation](docs/resources/access_token.md))
+
+BUG FIXES:
+
+- `forgejo_access_token`: follow pagination when looking up the token during refresh, so tokens beyond the first page of a user's token list are no longer dropped from state
+
 ## 0.11.1 (August 28, 2026)
 
 BUG FIXES:
