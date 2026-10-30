@@ -2,9 +2,7 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
 
@@ -32,7 +30,10 @@ var (
 // accessTokenResource is the resource implementation.
 type accessTokenResource struct {
 	client *forgejo.Client
-	api    *apiClient
+	// adminRoutes selects the /admin/users/{username}/tokens routes. Forgejo
+	// only accepts basic auth on /users/{username}/tokens, so with token auth
+	// the admin routes (Forgejo 16+) are the only way to manage tokens.
+	adminRoutes bool
 }
 
 // accessTokenResourceModel maps the resource schema data.
@@ -45,36 +46,6 @@ type accessTokenResourceModel struct {
 	Username     types.String `tfsdk:"username"`
 }
 
-// accessToken mirrors the API's AccessToken including the `repositories`
-// field, which the SDK does not model yet.
-type accessToken struct {
-	ID           int64            `json:"id"`
-	Name         string           `json:"name"`
-	Token        string           `json:"sha1"`
-	Scopes       []string         `json:"scopes"`
-	Repositories []repositoryMeta `json:"repositories"`
-}
-
-type repositoryMeta struct {
-	ID       int64  `json:"id"`
-	Owner    string `json:"owner"`
-	Name     string `json:"name"`
-	FullName string `json:"full_name"`
-}
-
-// repoTarget is the API's RepoTargetOption.
-type repoTarget struct {
-	Owner string `json:"owner"`
-	Name  string `json:"name"`
-}
-
-// createAccessTokenOption mirrors the API's CreateAccessTokenOption.
-type createAccessTokenOption struct {
-	Name         string       `json:"name"`
-	Scopes       []string     `json:"scopes"`
-	Repositories []repoTarget `json:"repositories,omitempty"`
-}
-
 var repoFullNameRegexp = regexp.MustCompile(`^[^/\s]+/[^/\s]+$`)
 
 // Metadata returns the resource type name.
@@ -85,7 +56,12 @@ func (r *accessTokenResource) Metadata(_ context.Context, req resource.MetadataR
 // Schema defines the schema for the resource.
 func (r *accessTokenResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Forgejo access token resource. Manages personal access tokens for API authentication.",
+		Description: "Forgejo access token resource. Manages personal access tokens for API authentication.\n\n" +
+			"With basic auth (`username`/`password`), the provider manages tokens via `/users/{username}/tokens`, " +
+			"which works for the authenticated user and, for site administrators, for any user. " +
+			"With API token auth (`api_token`), it uses the admin API `/admin/users/{username}/tokens` instead, " +
+			"because Forgejo does not allow creating tokens with another token on the regular route. " +
+			"This requires Forgejo 16 or newer and a site administrator token with the `write:admin` scope.",
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
@@ -184,7 +160,7 @@ func (r *accessTokenResource) Configure(_ context.Context, req resource.Configur
 	}
 
 	r.client = client.Client
-	r.api = client.api
+	r.adminRoutes = client.tokenAuth
 }
 
 // Create creates the resource and sets the initial Terraform state.
@@ -220,35 +196,43 @@ func (r *accessTokenResource) Create(ctx context.Context, req resource.CreateReq
 		}
 	}
 
-	opt := createAccessTokenOption{
-		Name:   data.Name.ValueString(),
-		Scopes: scopes,
+	opt := forgejo.CreateAccessTokenOption{
+		Name: data.Name.ValueString(),
+	}
+	for _, scope := range scopes {
+		opt.Scopes = append(opt.Scopes, forgejo.AccessTokenScope(scope))
 	}
 	for _, full := range repoNames {
 		owner, name, _ := strings.Cut(full, "/")
-		opt.Repositories = append(opt.Repositories, repoTarget{Owner: owner, Name: name})
+		opt.Repositories = append(opt.Repositories, forgejo.RepoTargetOption{Owner: owner, Name: name})
 	}
 
-	// The SDK's CreateAccessToken does not know `repositories`, so call the
-	// API directly. Username is required so we always have it.
+	// Username is required so we always have it.
 	username := data.Username.ValueString()
-	var token accessToken
-	err := r.api.do(ctx, "POST", fmt.Sprintf("/users/%s/tokens", url.PathEscape(username)), opt, &token)
+	var (
+		token *forgejo.AccessToken
+		res   *forgejo.Response
+		err   error
+	)
+	if r.adminRoutes {
+		token, res, err = r.client.AdminCreateUserAccessToken(username, opt)
+	} else {
+		token, res, err = r.client.CreateAccessToken(username, opt)
+	}
 	if err != nil {
 		var msg string
-		var apiErr *apiError
-		if !errors.As(err, &apiErr) {
-			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		if res == nil {
+			msg = r.nilResponseMessage(err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
-				"status": apiErr.Status,
+				"status": res.Status,
 			})
 
-			switch apiErr.StatusCode {
+			switch res.StatusCode {
 			case 400:
 				msg = fmt.Sprintf("Invalid token configuration: %s", err)
 			case 403:
-				msg = fmt.Sprintf("Forbidden: insufficient permissions to create access token: %s", err)
+				msg = fmt.Sprintf("Forbidden: insufficient permissions to create access token%s: %s", r.adminScopeHint("write:admin"), err)
 			case 404:
 				msg = fmt.Sprintf("User not found: %s", err)
 			case 422:
@@ -263,7 +247,7 @@ func (r *accessTokenResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Map response to model
-	data.from(&token)
+	data.from(token)
 
 	// Save data into Terraform state
 	diags = resp.State.Set(ctx, &data)
@@ -290,24 +274,22 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 	})
 
 	// Username is required, so we always know which user's tokens to list.
-	// Listed directly instead of via the SDK to get `repositories` back.
 	username := data.Username.ValueString()
-	tokens, err := r.listAccessTokens(ctx, username)
+	tokens, res, err := r.listAccessTokens(username)
 	if err != nil {
 		var msg string
-		var apiErr *apiError
-		if !errors.As(err, &apiErr) {
-			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+		if res == nil {
+			msg = r.nilResponseMessage(err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
-				"status": apiErr.Status,
+				"status": res.Status,
 			})
 
-			switch apiErr.StatusCode {
+			switch res.StatusCode {
 			case 401:
 				msg = fmt.Sprintf("Unauthorized: authentication required to list access tokens: %s", err)
 			case 403:
-				msg = fmt.Sprintf("Forbidden: insufficient permissions to list access tokens: %s", err)
+				msg = fmt.Sprintf("Forbidden: insufficient permissions to list access tokens%s: %s", r.adminScopeHint("read:admin"), err)
 			default:
 				msg = fmt.Sprintf("Unknown error: %s", err)
 			}
@@ -318,7 +300,7 @@ func (r *accessTokenResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Find token by ID
-	var foundToken *accessToken
+	var foundToken *forgejo.AccessToken
 	for _, t := range tokens {
 		if t.ID == tokenID {
 			foundToken = t
@@ -385,11 +367,11 @@ func (r *accessTokenResource) Delete(ctx context.Context, req resource.DeleteReq
 	})
 
 	// Use Forgejo client to delete access token
-	res, err := r.client.DeleteAccessToken(username, tokenID)
+	res, err := r.deleteAccessToken(ctx, username, tokenID)
 	if err != nil {
 		var msg string
 		if res == nil {
-			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
+			msg = r.nilResponseMessage(err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
 				"status": res.Status,
@@ -399,7 +381,7 @@ func (r *accessTokenResource) Delete(ctx context.Context, req resource.DeleteReq
 			case 401:
 				msg = fmt.Sprintf("Unauthorized: authentication required to delete access token: %s", err)
 			case 403:
-				msg = fmt.Sprintf("Forbidden: insufficient permissions to delete access token: %s", err)
+				msg = fmt.Sprintf("Forbidden: insufficient permissions to delete access token%s: %s", r.adminScopeHint("write:admin"), err)
 			case 404:
 				msg = fmt.Sprintf("Access token not found: %s", err)
 			case 422:
@@ -415,24 +397,72 @@ func (r *accessTokenResource) Delete(ctx context.Context, req resource.DeleteReq
 }
 
 // listAccessTokens returns all access tokens of a user, following pagination.
-func (r *accessTokenResource) listAccessTokens(ctx context.Context, username string) ([]*accessToken, error) {
+func (r *accessTokenResource) listAccessTokens(username string) ([]*forgejo.AccessToken, *forgejo.Response, error) {
 	const pageSize = 50
-	var all []*accessToken
+	var all []*forgejo.AccessToken
 	for page := 1; ; page++ {
-		var tokens []*accessToken
-		path := fmt.Sprintf("/users/%s/tokens?page=%d&limit=%d", url.PathEscape(username), page, pageSize)
-		if err := r.api.do(ctx, "GET", path, nil, &tokens); err != nil {
-			return nil, err
+		opts := forgejo.ListAccessTokensOptions{
+			ListOptions: forgejo.ListOptions{Page: page, PageSize: pageSize},
+		}
+		var (
+			tokens []*forgejo.AccessToken
+			res    *forgejo.Response
+			err    error
+		)
+		if r.adminRoutes {
+			tokens, res, err = r.client.AdminListUserAccessTokens(username, opts)
+		} else {
+			tokens, res, err = r.client.ListAccessTokens(username, opts)
+		}
+		if err != nil {
+			return nil, res, err
 		}
 		all = append(all, tokens...)
 		if len(tokens) < pageSize {
-			return all, nil
+			return all, res, nil
 		}
 	}
 }
 
+// deleteAccessToken deletes an access token of a user by ID.
+func (r *accessTokenResource) deleteAccessToken(ctx context.Context, username string, id int64) (*forgejo.Response, error) {
+	if r.adminRoutes {
+		return r.client.AdminDeleteUserAccessToken(username, id)
+	}
+
+	res, err := r.client.DeleteAccessTokenByID(ctx, username, id)
+	if res.Response == nil {
+		return nil, err
+	}
+
+	return &res, err
+}
+
+// nilResponseMessage describes an error that occurred before Forgejo
+// answered, e.g. the SDK's server version check for the admin routes.
+func (r *accessTokenResource) nilResponseMessage(err error) string {
+	if r.adminRoutes {
+		return fmt.Sprintf(
+			"Unknown error with nil response: %s. Managing access tokens with API token authentication "+
+				"uses the admin API, which requires Forgejo 16 or newer; use basic auth (username/password) on older versions.",
+			err,
+		)
+	}
+
+	return fmt.Sprintf("Unknown error with nil response: %s", err)
+}
+
+// adminScopeHint explains the permissions the admin routes need.
+func (r *accessTokenResource) adminScopeHint(scope string) string {
+	if !r.adminRoutes {
+		return ""
+	}
+
+	return fmt.Sprintf(" (with API token authentication the token must belong to a site administrator and have the %s scope)", scope)
+}
+
 // from converts an API access token to the resource model.
-func (m *accessTokenResourceModel) from(t *accessToken) {
+func (m *accessTokenResourceModel) from(t *forgejo.AccessToken) {
 	m.ID = types.Int64Value(t.ID)
 	m.Name = types.StringValue(t.Name)
 
@@ -441,7 +471,7 @@ func (m *accessTokenResourceModel) from(t *accessToken) {
 	if len(t.Scopes) > 0 {
 		scopeValues := make([]attr.Value, len(t.Scopes))
 		for i, scope := range t.Scopes {
-			scopeValues[i] = types.StringValue(scope)
+			scopeValues[i] = types.StringValue(string(scope))
 		}
 		m.Scopes = types.SetValueMust(types.StringType, scopeValues)
 	} else {

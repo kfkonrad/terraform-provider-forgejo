@@ -28,6 +28,9 @@ $ docker-compose start
 
 Forgejo listens on [port 3000](http://localhost:3000).
 
+The stack runs Forgejo 17 by default. Set `FORGEJO_VERSION` to use another major version, e.g. `FORGEJO_VERSION=15 docker-compose up --no-start`.
+The same variable selects the version for the acceptance tests (`FORGEJO_VERSION=15 make testacc`).
+
 In the initial configuration wizard, configure the database:
 
 - Database type: MySQL

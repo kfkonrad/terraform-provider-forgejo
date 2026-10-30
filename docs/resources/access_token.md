@@ -3,11 +3,14 @@ page_title: "Resource forgejo_access_token - forgejo"
 subcategory: ""
 description: |-
   Forgejo access token resource. Manages personal access tokens for API authentication.
+  With basic auth (username/password), the provider manages tokens via /users/{username}/tokens, which works for the authenticated user and, for site administrators, for any user. With API token auth (api_token), it uses the admin API /admin/users/{username}/tokens instead, because Forgejo does not allow creating tokens with another token on the regular route. This requires Forgejo 16 or newer and a site administrator token with the write:admin scope.
 ---
 
 # Resource (forgejo_access_token)
 
 Forgejo access token resource. Manages personal access tokens for API authentication.
+
+With basic auth (`username`/`password`), the provider manages tokens via `/users/{username}/tokens`, which works for the authenticated user and, for site administrators, for any user. With API token auth (`api_token`), it uses the admin API `/admin/users/{username}/tokens` instead, because Forgejo does not allow creating tokens with another token on the regular route. This requires Forgejo 16 or newer and a site administrator token with the `write:admin` scope.
 
 ## Example Usage
 

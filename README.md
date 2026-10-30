@@ -82,6 +82,9 @@ Optionally, for administrative privileges (required to manage users and user rep
 
 - `write:admin`
 
+With API token authentication, `forgejo_access_token` manages tokens through the admin API, which requires Forgejo 16 or newer and a site administrator token with `write:admin`.
+On older Forgejo versions, use username and password to manage access tokens.
+
 Alternatively, supply **username** and **password** to authenticate:
 
 ```terraform

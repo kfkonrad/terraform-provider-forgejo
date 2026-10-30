@@ -1,3 +1,14 @@
+## Unreleased
+
+FEATURES:
+
+- `forgejo_access_token`: support API token authentication. When the provider authenticates with `api_token`, tokens are managed through the admin API (`/admin/users/{username}/tokens`), so tokens for any user can be created without basic auth. Requires Forgejo 16 or newer and a site administrator token with the `write:admin` scope ([documentation](docs/resources/access_token.md))
+
+DEPENDENCIES:
+
+- `forgejo_access_token` uses the Forgejo SDK for all API calls again instead of raw HTTP requests; requires an SDK release with admin access token routes and the `repositories` token option
+- Run acceptance tests against Forgejo 15 and 17; the local test environment defaults to Forgejo 17 and can be changed with `FORGEJO_VERSION`
+
 ## 0.13.1 (November 10, 2026)
 
 BUG FIXES:

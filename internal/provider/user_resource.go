@@ -96,8 +96,8 @@ func (m *userResourceModel) to(s *userResourceModel, o *forgejo.EditUserOption) 
 		o = new(forgejo.EditUserOption)
 	}
 
-	o.SourceID = m.SourceID.ValueInt64()
-	o.LoginName = m.LoginName.ValueString()
+	o.SourceID = forgejo.OptionalInt64(m.SourceID.ValueInt64())
+	o.LoginName = forgejo.OptionalString(m.LoginName.ValueString())
 	o.Email = m.Email.ValueStringPointer()
 	o.FullName = m.FullName.ValueStringPointer()
 

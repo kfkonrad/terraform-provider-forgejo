@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v4"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 
@@ -16,9 +17,12 @@ const (
 	// Authentication is provided via FORGEJO_API_TOKEN or FORGEJO_USERNAME/FORGEJO_PASSWORD
 	// environment variables.
 	providerConfig = `provider "forgejo" {
-  host = "http://localhost:3000"
+  host = "` + testAccHost + `"
 }
 `
+
+	// testAccHost is the Forgejo instance the acceptance tests run against.
+	testAccHost = "http://localhost:3000"
 )
 
 // testAccProtoV6ProviderFactories are used to instantiate a provider during
@@ -32,6 +36,12 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 }
 
 func testAccPreCheck(t *testing.T) {
+	// Tests that call this outside resource.Test (to check the server version
+	// first) would otherwise fail instead of skip without TF_ACC.
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("Acceptance tests skipped unless env 'TF_ACC' set")
+	}
+
 	// Tests require either API token or username/password for authentication
 	apiToken := os.Getenv("FORGEJO_API_TOKEN")
 	username := os.Getenv("FORGEJO_USERNAME")
@@ -44,18 +54,45 @@ func testAccPreCheck(t *testing.T) {
 }
 
 func testAccPreCheckAccessToken(t *testing.T) {
-	// Access token tests require username/password authentication
-	// because creating access tokens for users via API token auth is not allowed by Forgejo
 	username := os.Getenv("FORGEJO_USERNAME")
 	password := os.Getenv("FORGEJO_PASSWORD")
 	apiToken := os.Getenv("FORGEJO_API_TOKEN")
 
+	// With API token auth the provider manages tokens through the admin API,
+	// which Forgejo only offers from version 16 on.
 	if apiToken != "" {
-		t.Skip("Access token tests require username/password authentication (FORGEJO_USERNAME and FORGEJO_PASSWORD), skipping because FORGEJO_API_TOKEN is set")
+		testAccSkipUnlessForgejo(t, ">= 16.0.0")
+		return
 	}
 
 	if username == "" || password == "" {
-		t.Fatal("Access token tests require both FORGEJO_USERNAME and FORGEJO_PASSWORD to be set")
+		t.Fatal("Access token tests require either FORGEJO_API_TOKEN or both FORGEJO_USERNAME and FORGEJO_PASSWORD to be set")
+	}
+}
+
+// testAccClient returns an SDK client authenticated like the provider under test.
+func testAccClient(t *testing.T) *forgejo.Client {
+	t.Helper()
+
+	auth := forgejo.SetBasicAuth(os.Getenv("FORGEJO_USERNAME"), os.Getenv("FORGEJO_PASSWORD"))
+	if token := os.Getenv("FORGEJO_API_TOKEN"); token != "" {
+		auth = forgejo.SetToken(token)
+	}
+	c, err := forgejo.NewClient(testAccHost, auth)
+	if err != nil {
+		t.Fatalf("Unable to create Forgejo client: %s", err)
+	}
+
+	return c
+}
+
+// testAccSkipUnlessForgejo skips the test unless the Forgejo server satisfies
+// the version constraint.
+func testAccSkipUnlessForgejo(t *testing.T, constraint string) {
+	t.Helper()
+
+	if err := testAccClient(t).CheckServerVersionConstraint(constraint); err != nil {
+		t.Skipf("Skipping test: %s", err)
 	}
 }
 

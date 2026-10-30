@@ -277,14 +277,21 @@ func (p *forgejoProvider) Configure(ctx context.Context, req provider.ConfigureR
 	}
 
 	// Make the Forgejo client available during DataSource and Resource
-	// type Configure methods, together with a raw API client for endpoints
-	// the SDK does not model.
+	// type Configure methods.
 	data := &providerData{
-		Client: client,
-		api:    newAPIClient(host, username, password, otp, token),
+		Client:    client,
+		tokenAuth: token != "",
 	}
 	resp.DataSourceData = data
 	resp.ResourceData = data
+}
+
+// providerData is what the provider hands to resources and data sources via
+// ProviderData: the SDK client plus how it authenticates, since some API
+// routes only accept basic auth.
+type providerData struct {
+	*forgejo.Client
+	tokenAuth bool
 }
 
 // DataSources defines the data sources implemented in the provider.
