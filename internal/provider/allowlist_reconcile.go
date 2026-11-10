@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -205,4 +206,27 @@ func (l *allowlistReaderLookup) isUserReader(name string) (bool, error) {
 		return false, err
 	}
 	return users[name], nil
+}
+
+// droppedAllowlistEntries returns the entries of planned that are missing
+// from reported. Names are compared case-insensitively, as Forgejo does.
+func droppedAllowlistEntries(ctx context.Context, planned types.Set, reported []string) []string {
+	plannedVals, err := setToStringSlice(ctx, planned)
+	if err != nil {
+		return nil
+	}
+
+	seen := make(map[string]bool, len(reported))
+	for _, v := range reported {
+		seen[strings.ToLower(v)] = true
+	}
+
+	var dropped []string
+	for _, v := range plannedVals {
+		if !seen[strings.ToLower(v)] {
+			dropped = append(dropped, v)
+		}
+	}
+
+	return dropped
 }

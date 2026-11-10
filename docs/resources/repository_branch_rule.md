@@ -109,8 +109,8 @@ resource "forgejo_repository_branch_rule" "strict" {
 
 ### Optional
 
-- `approvals_whitelist_teams` (Set of String) Whitelisted teams for reviews.
-- `approvals_whitelist_usernames` (Set of String) Whitelisted reviewers.
+- `approvals_whitelist_teams` (Set of String) Whitelisted teams for reviews. Teams need access to the repository; Forgejo silently drops others, which the provider reports as an error.
+- `approvals_whitelist_usernames` (Set of String) Whitelisted reviewers. Users need read access to the repository; Forgejo silently drops others, which the provider reports as an error.
 - `block_on_official_review_requests` (Boolean) Block merge on official review requests. Defaults to `false`.
 - `block_on_outdated_branch` (Boolean) Block merge if pull request is outdated. Defaults to `false`.
 - `block_on_rejected_reviews` (Boolean) Block merge on rejected reviews. Defaults to `false`.
@@ -120,12 +120,12 @@ resource "forgejo_repository_branch_rule" "strict" {
 - `enable_push` (Boolean) Enable push to the protected branch. Defaults to `false`.
 - `enable_push_whitelist` (Boolean) Whitelist restricted push. Requires `enable_push` to be `true`. Defaults to `false`.
 - `enable_status_check` (Boolean) Enable status check. Defaults to `false`.
-- `merge_whitelist_teams` (Set of String) Whitelisted teams for merging.
-- `merge_whitelist_usernames` (Set of String) Whitelisted users for merging.
+- `merge_whitelist_teams` (Set of String) Whitelisted teams for merging. Teams need access to the repository; Forgejo silently drops others, which the provider reports as an error.
+- `merge_whitelist_usernames` (Set of String) Whitelisted users for merging. Users need write access to the repository; Forgejo silently drops others, which the provider reports as an error.
 - `protected_file_patterns` (String) Protected file patterns (semicolon-separated glob patterns). Defaults to `""`.
 - `push_whitelist_deploy_keys` (Boolean) Whitelist deploy keys with write access to push. Requires `enable_push` and `enable_push_whitelist` to be `true`. Defaults to `false`.
-- `push_whitelist_teams` (Set of String) Whitelisted teams for pushing.
-- `push_whitelist_usernames` (Set of String) Whitelisted users for pushing.
+- `push_whitelist_teams` (Set of String) Whitelisted teams for pushing. Teams need access to the repository; Forgejo silently drops others, which the provider reports as an error.
+- `push_whitelist_usernames` (Set of String) Whitelisted users for pushing. Users need write access to the repository; Forgejo silently drops others, which the provider reports as an error.
 - `require_signed_commits` (Boolean) Require signed commits. Defaults to `false`.
 - `required_approvals` (Number) Number of required approvals. Defaults to `0`.
 - `status_check_contexts` (Set of String) Status check patterns.

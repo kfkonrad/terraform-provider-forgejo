@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -94,6 +95,57 @@ func (m *repositoryBranchRuleResourceModel) from(bp *forgejo.BranchProtection, r
 	m.UnprotectedFilePatterns = types.StringValue(bp.UnprotectedFilePatterns)
 	m.CreatedAt = types.StringValue(bp.Created.Format(time.RFC3339))
 	m.UpdatedAt = types.StringValue(bp.Updated.Format(time.RFC3339))
+}
+
+// checkDroppedAllowlists reports an error for every planned allowlist entry
+// that Forgejo did not save. Unlike tag protections, Forgejo silently drops
+// branch protection allowlist entries that lack the required repository
+// access when saving, so they are neither stored nor enforced.
+func (m *repositoryBranchRuleResourceModel) checkDroppedAllowlists(ctx context.Context, bp *forgejo.BranchProtection, diags *diag.Diagnostics) {
+	const (
+		userWrite = "users need write access to the repository"
+		userRead  = "users need read access to the repository (as a collaborator, team member or owner)"
+		team      = "teams need access to the repository, and the repository must belong to an organization"
+	)
+
+	checks := []struct {
+		attr     string
+		planned  types.Set
+		reported []string
+		reason   string
+	}{
+		{"push_whitelist_usernames", m.PushWhitelistUsernames, bp.PushWhitelistUsernames, userWrite},
+		{"push_whitelist_teams", m.PushWhitelistTeams, bp.PushWhitelistTeams, team},
+		{"merge_whitelist_usernames", m.MergeWhitelistUsernames, bp.MergeWhitelistUsernames, userWrite},
+		{"merge_whitelist_teams", m.MergeWhitelistTeams, bp.MergeWhitelistTeams, team},
+		{"approvals_whitelist_usernames", m.ApprovalsWhitelistUsernames, bp.ApprovalsWhitelistUsernames, userRead},
+		{"approvals_whitelist_teams", m.ApprovalsWhitelistTeams, bp.ApprovalsWhitelistTeams, team},
+	}
+
+	for _, c := range checks {
+		dropped := droppedAllowlistEntries(ctx, c.planned, c.reported)
+		if len(dropped) == 0 {
+			continue
+		}
+		diags.AddAttributeError(
+			path.Root(c.attr),
+			"Forgejo dropped allowlist entries",
+			fmt.Sprintf(
+				"Forgejo did not save %s in %q for repository %q because they lack the required access: %s. "+
+					"Grant the access first, or remove the entries from the configuration.",
+				quoteJoin(dropped), c.attr, m.Repository.ValueString(), c.reason,
+			),
+		)
+	}
+}
+
+// quoteJoin quotes and comma-separates values for error messages.
+func quoteJoin(vals []string) string {
+	quoted := make([]string, len(vals))
+	for i, v := range vals {
+		quoted[i] = fmt.Sprintf("%q", v)
+	}
+	return strings.Join(quoted, ", ")
 }
 
 // toCreateOption converts the Terraform model to Forgejo CreateBranchProtectionOption.
@@ -301,13 +353,13 @@ func (r *repositoryBranchRuleResource) Schema(_ context.Context, _ resource.Sche
 				Default:     booldefault.StaticBool(false),
 			},
 			"push_whitelist_usernames": schema.SetAttribute{
-				Description: "Whitelisted users for pushing.",
+				Description: "Whitelisted users for pushing. Users need write access to the repository; Forgejo silently drops others, which the provider reports as an error.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
 			},
 			"push_whitelist_teams": schema.SetAttribute{
-				Description: "Whitelisted teams for pushing.",
+				Description: "Whitelisted teams for pushing. Teams need access to the repository; Forgejo silently drops others, which the provider reports as an error.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
@@ -339,13 +391,13 @@ func (r *repositoryBranchRuleResource) Schema(_ context.Context, _ resource.Sche
 				Default:     booldefault.StaticBool(false),
 			},
 			"approvals_whitelist_usernames": schema.SetAttribute{
-				Description: "Whitelisted reviewers.",
+				Description: "Whitelisted reviewers. Users need read access to the repository; Forgejo silently drops others, which the provider reports as an error.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
 			},
 			"approvals_whitelist_teams": schema.SetAttribute{
-				Description: "Whitelisted teams for reviews.",
+				Description: "Whitelisted teams for reviews. Teams need access to the repository; Forgejo silently drops others, which the provider reports as an error.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
@@ -379,13 +431,13 @@ func (r *repositoryBranchRuleResource) Schema(_ context.Context, _ resource.Sche
 				Default:     booldefault.StaticBool(false),
 			},
 			"merge_whitelist_usernames": schema.SetAttribute{
-				Description: "Whitelisted users for merging.",
+				Description: "Whitelisted users for merging. Users need write access to the repository; Forgejo silently drops others, which the provider reports as an error.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
 			},
 			"merge_whitelist_teams": schema.SetAttribute{
-				Description: "Whitelisted teams for merging.",
+				Description: "Whitelisted teams for merging. Teams need access to the repository; Forgejo silently drops others, which the provider reports as an error.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
@@ -558,6 +610,10 @@ func (r *repositoryBranchRuleResource) Create(ctx context.Context, req resource.
 		return
 	}
 
+	// Check against the plan before overwriting it with the API response.
+	// Returning an error makes Terraform skip its consistency check, while
+	// the state below still records what Forgejo actually saved.
+	data.checkDroppedAllowlists(ctx, bp, &resp.Diagnostics)
 	data.from(bp, data.Repository.ValueString(), owner)
 
 	diags = resp.State.Set(ctx, &data)
@@ -697,6 +753,10 @@ func (r *repositoryBranchRuleResource) Update(ctx context.Context, req resource.
 		return
 	}
 
+	// Check against the plan before overwriting it with the API response.
+	// Returning an error makes Terraform skip its consistency check, while
+	// the state below still records what Forgejo actually saved.
+	data.checkDroppedAllowlists(ctx, bp, &resp.Diagnostics)
 	data.from(bp, data.Repository.ValueString(), owner)
 
 	diags = resp.State.Set(ctx, &data)

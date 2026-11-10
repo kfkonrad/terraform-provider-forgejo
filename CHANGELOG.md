@@ -3,6 +3,7 @@
 BUG FIXES:
 
 - `forgejo_repository_tag_rule`: keep `whitelist_usernames` and `whitelist_teams` entries that lack read access to the repository in state. Forgejo stores and enforces them but omits them from API responses, which previously caused a "provider produced inconsistent result after apply" error ([documentation](docs/resources/repository_tag_rule.md))
+- `forgejo_repository_branch_rule`: report a clear error when Forgejo drops push, merge or approvals allowlist entries that lack the required repository access, instead of a "provider produced inconsistent result after apply" error ([documentation](docs/resources/repository_branch_rule.md))
 
 ## 0.13.0 (November 10, 2026)
 

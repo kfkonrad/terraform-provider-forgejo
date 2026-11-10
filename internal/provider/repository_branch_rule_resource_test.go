@@ -213,3 +213,72 @@ resource "forgejo_repository_branch_rule" "test" {
 		},
 	})
 }
+
+// Forgejo silently drops branch protection allowlist entries that lack the
+// required repository access. That previously surfaced as "Provider produced
+// inconsistent result after apply"; it is now a clear error.
+func TestAccRepositoryBranchRuleResource_DroppedAllowlistEntries(t *testing.T) {
+	config := func(includesAllRepos bool, mergeUsers string) string {
+		return providerConfig + fmt.Sprintf(`
+resource "forgejo_organization" "test" {
+	name = "test-branch-rule-dropped-org"
+}
+resource "forgejo_repository" "test" {
+	owner     = forgejo_organization.test.name
+	name      = "test_repo"
+	auto_init = true
+}
+resource "forgejo_user" "outsider" {
+	login    = "branchruleoutsider"
+	email    = "branchruleoutsider@localhost.localdomain"
+	password = "passw0rd"
+}
+resource "forgejo_team" "pushers" {
+	organization              = forgejo_organization.test.name
+	name                      = "pushers"
+	is_admin                  = false
+	includes_all_repositories = %t
+	permissions {
+		code = "write"
+	}
+	depends_on = [forgejo_repository.test]
+}
+resource "forgejo_repository_branch_rule" "test" {
+	repository               = forgejo_repository.test.full_name
+	protected_branch_pattern = "main"
+	enable_push              = true
+	enable_push_whitelist    = true
+	push_whitelist_teams     = [forgejo_team.pushers.name]
+	enable_merge_whitelist    = true
+	merge_whitelist_usernames = %s
+	depends_on = [forgejo_user.outsider]
+}
+`, includesAllRepos, mergeUsers)
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create: the team has no repository access.
+			{
+				Config:      config(false, `["tfadmin"]`),
+				ExpectError: regexp.MustCompile(`(?s)Forgejo did not save "pushers" in\s+"push_whitelist_teams"`),
+			},
+			// The team has access now; the tainted rule is recreated.
+			{
+				Config: config(true, `["tfadmin"]`),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository_branch_rule.test", tfjsonpath.New("push_whitelist_teams"), knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact("pushers"),
+					})),
+				},
+			},
+			// Update: the user has no write access.
+			{
+				Config:      config(true, `["tfadmin", forgejo_user.outsider.login]`),
+				ExpectError: regexp.MustCompile(`(?s)Forgejo did not save "branchruleoutsider" in\s+"merge_whitelist_usernames"`),
+			},
+		},
+	})
+}
