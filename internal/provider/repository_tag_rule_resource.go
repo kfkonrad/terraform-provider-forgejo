@@ -53,6 +53,21 @@ func (m *repositoryTagRuleResourceModel) from(tp *forgejo.TagProtection, reposit
 	m.UpdatedAt = types.StringValue(tp.Updated.Format(time.RFC3339))
 }
 
+// keepUnreportedAllowlist re-adds allowlist entries from prior (the plan or
+// the previous state) that Forgejo omitted from tp. Forgejo only reports
+// allowlisted users and teams that have read access to the repository. If
+// lookup is nil, every omitted entry is kept, which is correct right after a
+// successful write since Forgejo rejects unknown users and teams.
+func (m *repositoryTagRuleResourceModel) keepUnreportedAllowlist(ctx context.Context, tp *forgejo.TagProtection, prior repositoryTagRuleResourceModel, lookup *allowlistReaderLookup) {
+	var isUserReader, isTeamReader func(string) (bool, error)
+	if lookup != nil {
+		isUserReader = lookup.isUserReader
+		isTeamReader = lookup.isTeamReader
+	}
+	m.WhitelistUsernames = mergeAllowlist(ctx, "whitelist_usernames", prior.WhitelistUsernames, tp.WhitelistUsernames, isUserReader)
+	m.WhitelistTeams = mergeAllowlist(ctx, "whitelist_teams", prior.WhitelistTeams, tp.WhitelistTeams, isTeamReader)
+}
+
 // toCreateOption converts the Terraform model to Forgejo CreateTagProtectionOption.
 func (m *repositoryTagRuleResourceModel) toCreateOption(ctx context.Context) (forgejo.CreateTagProtectionOption, error) {
 	opt := forgejo.CreateTagProtectionOption{
@@ -157,13 +172,13 @@ func (r *repositoryTagRuleResource) Schema(_ context.Context, _ resource.SchemaR
 
 			// Optional
 			"whitelist_usernames": schema.SetAttribute{
-				Description: "Whitelisted users for creating matching tags.",
+				Description: "Whitelisted users for creating matching tags. Forgejo only reports users with read access to the repository; others are kept in state as configured.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
 			},
 			"whitelist_teams": schema.SetAttribute{
-				Description: "Whitelisted teams for creating matching tags.",
+				Description: "Whitelisted teams for creating matching tags. Forgejo only reports teams with access to the repository; others are kept in state as configured.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
@@ -256,7 +271,9 @@ func (r *repositoryTagRuleResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
+	plan := data
 	data.from(tp, data.Repository.ValueString(), owner)
+	data.keepUnreportedAllowlist(ctx, tp, plan, nil)
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -328,7 +345,9 @@ func (r *repositoryTagRuleResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
+	prior := data
 	data.from(tp, data.Repository.ValueString(), owner)
+	data.keepUnreportedAllowlist(ctx, tp, prior, newAllowlistReaderLookup(r.client, owner, repo))
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -397,7 +416,9 @@ func (r *repositoryTagRuleResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
+	plan := data
 	data.from(tp, data.Repository.ValueString(), owner)
+	data.keepUnreportedAllowlist(ctx, tp, plan, nil)
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)

@@ -1,3 +1,9 @@
+## 0.13.1 (November 10, 2026)
+
+BUG FIXES:
+
+- `forgejo_repository_tag_rule`: keep `whitelist_usernames` and `whitelist_teams` entries that lack read access to the repository in state. Forgejo stores and enforces them but omits them from API responses, which previously caused a "provider produced inconsistent result after apply" error ([documentation](docs/resources/repository_tag_rule.md))
+
 ## 0.13.0 (November 10, 2026)
 
 FEATURES:
