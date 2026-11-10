@@ -37,6 +37,9 @@ resource "forgejo_repository_label" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("color"), knownvalue.StringExact("d73a4a")),
 					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("description"), knownvalue.StringExact("Something isn't working")),
 					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("exclusive"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("is_archived"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("url"), knownvalue.NotNull()),
 				},
 			},
 			// Import testing
@@ -70,6 +73,85 @@ resource "forgejo_repository_label" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("color"), knownvalue.StringExact("cc0000")),
 					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("description"), knownvalue.StringExact("Confirmed bug")),
 				},
+			},
+			// Update testing - make the label exclusive and archive it
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name      = "test_label_repo"
+	auto_init = true
+}
+resource "forgejo_repository_label" "test" {
+	repository  = forgejo_repository.test.full_name
+	name        = "kind/bug"
+	color       = "cc0000"
+	description = "Confirmed bug"
+	exclusive   = true
+	is_archived = true
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("name"), knownvalue.StringExact("kind/bug")),
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("exclusive"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("is_archived"), knownvalue.Bool(true)),
+				},
+			},
+			// Update testing - revert exclusive and unarchive
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name      = "test_label_repo"
+	auto_init = true
+}
+resource "forgejo_repository_label" "test" {
+	repository  = forgejo_repository.test.full_name
+	name        = "kind/bug"
+	color       = "cc0000"
+	description = "Confirmed bug"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("exclusive"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("is_archived"), knownvalue.Bool(false)),
+				},
+			},
+		},
+	})
+}
+
+func TestAccRepositoryLabelResource_ExclusiveArchivedOnCreate(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name      = "test_label_exclusive_repo"
+	auto_init = true
+}
+resource "forgejo_repository_label" "test" {
+	repository  = forgejo_repository.test.full_name
+	name        = "priority/high"
+	color       = "b60205"
+	exclusive   = true
+	is_archived = true
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("exclusive"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository_label.test", tfjsonpath.New("is_archived"), knownvalue.Bool(true)),
+				},
+			},
+			{
+				ResourceName: "forgejo_repository_label.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					rs := s.RootModule().Resources["forgejo_repository_label.test"]
+
+					return fmt.Sprintf("%s:%s:%s", rs.Primary.Attributes["owner"], "test_label_exclusive_repo", rs.Primary.Attributes["id"]), nil
+				},
+				ImportStateVerify: true,
 			},
 		},
 	})
