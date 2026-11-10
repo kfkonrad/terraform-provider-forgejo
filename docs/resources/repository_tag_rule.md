@@ -85,8 +85,8 @@ resource "forgejo_repository_tag_rule" "releases" {
 
 ### Optional
 
-- `whitelist_teams` (Set of String) Whitelisted teams for creating matching tags.
-- `whitelist_usernames` (Set of String) Whitelisted users for creating matching tags.
+- `whitelist_teams` (Set of String) Whitelisted teams for creating matching tags. Forgejo only reports teams with access to the repository; others are kept in state as configured.
+- `whitelist_usernames` (Set of String) Whitelisted users for creating matching tags. Forgejo only reports users with read access to the repository; others are kept in state as configured.
 
 ### Read-Only
 
