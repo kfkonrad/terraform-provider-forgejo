@@ -1,3 +1,10 @@
+## 0.13.0 (November 10, 2026)
+
+FEATURES:
+
+- `forgejo_repository_label`: new optional `exclusive` attribute for scoped, mutually exclusive labels (named `scope/item`) and `is_archived` attribute to archive labels so they can no longer be added to issues or pull requests. Both default to `false` ([documentation](docs/resources/repository_label.md))
+- `forgejo_repository_label`: new computed `url` attribute exposing the label's API URL ([documentation](docs/resources/repository_label.md))
+
 ## 0.12.0 (September 21, 2026)
 
 FEATURES:
