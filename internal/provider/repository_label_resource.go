@@ -2,9 +2,7 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,7 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v4"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -33,7 +31,6 @@ var (
 // repositoryLabelResource is the resource implementation.
 type repositoryLabelResource struct {
 	client *forgejo.Client
-	api    *apiClient
 }
 
 // repositoryLabelResourceModel maps the resource schema data.
@@ -49,40 +46,10 @@ type repositoryLabelResourceModel struct {
 	URL         types.String `tfsdk:"url"`
 }
 
-// repositoryLabel is the Forgejo label API object. The SDK's forgejo.Label
-// lacks `exclusive` and `is_archived`, so labels go through the raw api client.
-type repositoryLabel struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Color       string `json:"color"`
-	Description string `json:"description"`
-	Exclusive   bool   `json:"exclusive"`
-	IsArchived  bool   `json:"is_archived"`
-	URL         string `json:"url"`
-}
-
-// createRepositoryLabelOption is the request body for creating a label.
-type createRepositoryLabelOption struct {
-	Name        string `json:"name"`
-	Color       string `json:"color"`
-	Description string `json:"description"`
-	Exclusive   bool   `json:"exclusive"`
-	IsArchived  bool   `json:"is_archived"`
-}
-
-// editRepositoryLabelOption is the request body for editing a label.
-type editRepositoryLabelOption struct {
-	Name        *string `json:"name,omitempty"`
-	Color       *string `json:"color,omitempty"`
-	Description *string `json:"description,omitempty"`
-	Exclusive   *bool   `json:"exclusive,omitempty"`
-	IsArchived  *bool   `json:"is_archived,omitempty"`
-}
-
 // from converts the Forgejo label API response to the Terraform model.
 // Forgejo stores colors without the leading "#" — the schema validator
 // rejects the "#" form so state and config stay aligned.
-func (m *repositoryLabelResourceModel) from(l *repositoryLabel, repository, owner string) {
+func (m *repositoryLabelResourceModel) from(l *forgejo.Label, repository, owner string) {
 	m.ID = types.Int64Value(l.ID)
 	m.Repository = types.StringValue(repository)
 	m.Owner = types.StringValue(owner)
@@ -95,8 +62,8 @@ func (m *repositoryLabelResourceModel) from(l *repositoryLabel, repository, owne
 }
 
 // toCreateOption converts the Terraform model to the label create request.
-func (m *repositoryLabelResourceModel) toCreateOption() createRepositoryLabelOption {
-	return createRepositoryLabelOption{
+func (m *repositoryLabelResourceModel) toCreateOption() forgejo.CreateLabelOption {
+	return forgejo.CreateLabelOption{
 		Name:        m.Name.ValueString(),
 		Color:       m.Color.ValueString(),
 		Description: m.Description.ValueString(),
@@ -106,25 +73,14 @@ func (m *repositoryLabelResourceModel) toCreateOption() createRepositoryLabelOpt
 }
 
 // toEditOption converts the Terraform model to the label edit request.
-func (m *repositoryLabelResourceModel) toEditOption() editRepositoryLabelOption {
-	return editRepositoryLabelOption{
+func (m *repositoryLabelResourceModel) toEditOption() forgejo.EditLabelOption {
+	return forgejo.EditLabelOption{
 		Name:        forgejo.OptionalString(m.Name.ValueString()),
 		Color:       forgejo.OptionalString(m.Color.ValueString()),
 		Description: forgejo.OptionalString(m.Description.ValueString()),
 		Exclusive:   forgejo.OptionalBool(m.Exclusive.ValueBool()),
 		IsArchived:  forgejo.OptionalBool(m.IsArchived.ValueBool()),
 	}
-}
-
-// repositoryLabelPath returns the API path of a repository's labels, or of a
-// single label when id is non-zero.
-func repositoryLabelPath(owner, repo string, id int64) string {
-	p := fmt.Sprintf("/repos/%s/%s/labels", url.PathEscape(owner), url.PathEscape(repo))
-	if id != 0 {
-		p += fmt.Sprintf("/%d", id)
-	}
-
-	return p
 }
 
 // parseRepositoryName extracts owner and repo from repository string.
@@ -233,7 +189,6 @@ func (r *repositoryLabelResource) Configure(_ context.Context, req resource.Conf
 	}
 
 	r.client = client.Client
-	r.api = client.api
 }
 
 // Create creates the resource and sets the initial Terraform state.
@@ -261,13 +216,11 @@ func (r *repositoryLabelResource) Create(ctx context.Context, req resource.Creat
 		"color": data.Color.ValueString(),
 	})
 
-	var label repositoryLabel
-	err = r.api.do(ctx, "POST", repositoryLabelPath(owner, repo, 0), data.toCreateOption(), &label)
+	label, res, err := r.client.CreateLabel(owner, repo, data.toCreateOption())
 	if err != nil {
 		var msg string
-		var res *apiError
-		if !errors.As(err, &res) {
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
 				"status": res.Status,
@@ -295,7 +248,7 @@ func (r *repositoryLabelResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	data.from(&label, data.Repository.ValueString(), owner)
+	data.from(label, data.Repository.ValueString(), owner)
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -325,13 +278,11 @@ func (r *repositoryLabelResource) Read(ctx context.Context, req resource.ReadReq
 		"id":    data.ID.ValueInt64(),
 	})
 
-	var label repositoryLabel
-	err = r.api.do(ctx, "GET", repositoryLabelPath(owner, repo, data.ID.ValueInt64()), nil, &label)
+	label, res, err := r.client.GetRepoLabel(owner, repo, data.ID.ValueInt64())
 	if err != nil {
 		var msg string
-		var res *apiError
-		if !errors.As(err, &res) {
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
 				"status": res.Status,
@@ -365,7 +316,7 @@ func (r *repositoryLabelResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	data.from(&label, data.Repository.ValueString(), owner)
+	data.from(label, data.Repository.ValueString(), owner)
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -396,13 +347,11 @@ func (r *repositoryLabelResource) Update(ctx context.Context, req resource.Updat
 		"name":  data.Name.ValueString(),
 	})
 
-	var label repositoryLabel
-	err = r.api.do(ctx, "PATCH", repositoryLabelPath(owner, repo, data.ID.ValueInt64()), data.toEditOption(), &label)
+	label, res, err := r.client.EditLabel(owner, repo, data.ID.ValueInt64(), data.toEditOption())
 	if err != nil {
 		var msg string
-		var res *apiError
-		if !errors.As(err, &res) {
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
 				"status": res.Status,
@@ -430,7 +379,7 @@ func (r *repositoryLabelResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
-	data.from(&label, data.Repository.ValueString(), owner)
+	data.from(label, data.Repository.ValueString(), owner)
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -460,12 +409,11 @@ func (r *repositoryLabelResource) Delete(ctx context.Context, req resource.Delet
 		"id":    data.ID.ValueInt64(),
 	})
 
-	err = r.api.do(ctx, "DELETE", repositoryLabelPath(owner, repo, data.ID.ValueInt64()), nil, nil)
+	res, err := r.client.DeleteLabel(owner, repo, data.ID.ValueInt64())
 	if err != nil {
 		var msg string
-		var res *apiError
-		if !errors.As(err, &res) {
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
 				"status": res.Status,
@@ -525,13 +473,11 @@ func (r *repositoryLabelResource) ImportState(ctx context.Context, req resource.
 		"id":    id,
 	})
 
-	var label repositoryLabel
-	err = r.api.do(ctx, "GET", repositoryLabelPath(owner, repo, id), nil, &label)
+	label, res, err := r.client.GetRepoLabel(owner, repo, id)
 	if err != nil {
 		var msg string
-		var res *apiError
-		if !errors.As(err, &res) {
-			msg = fmt.Sprintf("Unknown error: %s", err)
+		if res == nil {
+			msg = fmt.Sprintf("Unknown error with nil response: %s", err)
 		} else {
 			tflog.Error(ctx, "Error", map[string]any{
 				"status": res.Status,
@@ -553,7 +499,7 @@ func (r *repositoryLabelResource) ImportState(ctx context.Context, req resource.
 	}
 
 	var data repositoryLabelResourceModel
-	data.from(&label, fmt.Sprintf("%s/%s", owner, repo), owner)
+	data.from(label, fmt.Sprintf("%s/%s", owner, repo), owner)
 
 	diags := resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)

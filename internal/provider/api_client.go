@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v4"
 )
 
 // providerData is what the provider hands to resources and data sources via
