@@ -6,9 +6,34 @@ GITHUB_USER="kfkonrad"
 REGISTRY="ghcr.io"
 
 # Parse arguments
+#   (none)                    snapshot build, version <last tag>-SNAPSHOT-<commit>
+#   --release                 release build, needs a git tag on HEAD
+#   --prerelease <version>    snapshot build published as <version>, e.g. 0.14.0-beta.1;
+#                             no git tag needed, so nothing reaches the public registries
 SNAPSHOT_FLAG="--snapshot"
-if [[ "$*" == *"--release"* ]]; then
-  SNAPSHOT_FLAG=""
+PRERELEASE_VERSION=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --release) SNAPSHOT_FLAG="" ;;
+    --prerelease) PRERELEASE_VERSION="${2#v}"; shift ;;
+    *) echo "Unknown argument: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if [[ -n "$PRERELEASE_VERSION" ]]; then
+  if [[ -z "$SNAPSHOT_FLAG" ]]; then
+    echo "--release and --prerelease are mutually exclusive" >&2
+    exit 1
+  fi
+  if ! [[ "$PRERELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$ ]]; then
+    echo "Pre-release version must look like 1.2.3-beta.1, got: $PRERELEASE_VERSION" >&2
+    exit 1
+  fi
+  # Read by snapshot.version_template in .goreleaser.yml
+  export PRERELEASE_VERSION
+  echo "Building pre-release $PRERELEASE_VERSION..."
+elif [[ -z "$SNAPSHOT_FLAG" ]]; then
   echo "Building non-snapshot release..."
 else
   echo "Building snapshot..."

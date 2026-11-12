@@ -53,10 +53,15 @@ signs:
       - "--detach-sign"
       - "${artifact}"
 release:
+  # Mark tags with a pre-release suffix (e.g. v1.2.3-beta.1) as GitHub pre-releases.
+  prerelease: auto
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
   # If you want to manually examine the release before its live, uncomment this line:
   # draft: true
+snapshot:
+  # local-release.sh --prerelease sets PRERELEASE_VERSION; plain snapshots keep the default scheme.
+  version_template: '{{ envOrDefault "PRERELEASE_VERSION" (printf "%s-SNAPSHOT-%s" .Version .ShortCommit) }}'
 changelog:
   disable: true
