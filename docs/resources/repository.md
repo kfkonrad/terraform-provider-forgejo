@@ -120,6 +120,7 @@ resource "forgejo_repository" "mirror" {
 - `autodetect_manual_merge` (Boolean) Auto-detect manual pull request merges? Defaults to `false`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `clone_addr` (String) Migrate / clone from URL.
 - `default_branch` (String) Default branch of the repository.
+- `default_delete_branch_after_merge` (Boolean) Delete pull request branch after merge by default? Defaults to `false`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `default_merge_style` (String) Default merge style of the repository. Allowed values: `merge` (default), `rebase`, `rebase-merge`, `squash`. **Note**: This setting is only effective if `has_pull_requests` is `true`.
 - `description` (String) Description of the repository.
 - `external_tracker` (Attributes) Settings for external issue tracker. **Note**: This setting is only effective if `has_issues` is `true`. (see [below for nested schema](#nestedatt--external_tracker))

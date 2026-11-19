@@ -2,7 +2,12 @@
 
 FEATURES:
 
+- `forgejo_repository`: new optional `default_delete_branch_after_merge` attribute to delete pull request branches after merge by default. Defaults to `false`. Write-only like `allow_manual_merge`: the value is sent to Forgejo but not read back, so changes made outside of OpenTofu are not detected ([documentation](docs/resources/repository.md))
 - `forgejo_access_token`: support API token authentication. When the provider authenticates with `api_token`, tokens are managed through the admin API (`/admin/users/{username}/tokens`), so tokens for any user can be created without basic auth. Requires Forgejo 16 or newer and a site administrator token with the `write:admin` scope ([documentation](docs/resources/access_token.md))
+
+BUG FIXES:
+
+- `forgejo_repository`: keep `full_name` known in the plan for in-place updates that neither rename the repository nor change its owner. Previously every update marked it as known after apply, which forced replacement of resources referencing it, such as `forgejo_repository_branch_rule`, `forgejo_repository_tag_rule` and `forgejo_repository_webhook`
 
 DEPENDENCIES:
 

@@ -31,6 +31,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
@@ -106,6 +107,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_org/tftest.git")),
@@ -183,6 +185,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_user/tftest.git")),
@@ -267,6 +270,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_user/tftest.git")),
@@ -351,6 +355,7 @@ resource "forgejo_repository" "test" {
 	allow_rebase_explicit       = true
 	allow_squash_merge          = false
 	autodetect_manual_merge     = true
+	default_delete_branch_after_merge = true
 	default_merge_style         = "rebase"
 	ignore_whitespace_conflicts = true
 
@@ -366,6 +371,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_user/tftest1.git")),
@@ -462,6 +468,7 @@ resource "forgejo_repository" "test" {
 	allow_rebase_explicit       = false
 	allow_squash_merge          = true
 	autodetect_manual_merge     = true
+	default_delete_branch_after_merge = true
 	default_merge_style         = "squash"
 	ignore_whitespace_conflicts = true
 
@@ -480,6 +487,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_user/tftest2.git")),
@@ -577,6 +585,7 @@ resource "forgejo_repository" "test" {
 	allow_rebase_explicit       = true
 	allow_squash_merge          = false
 	autodetect_manual_merge     = false
+	default_delete_branch_after_merge = false
 	default_merge_style         = "rebase"
 	ignore_whitespace_conflicts = false
 
@@ -595,6 +604,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_user/tftest3.git")),
@@ -676,6 +686,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_user/tftest.git")),
@@ -749,6 +760,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/github/gitignore")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
@@ -824,6 +836,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/github/gitignore")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
@@ -897,6 +910,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/github/gitignore")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
@@ -972,6 +986,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/github/gitignore")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
@@ -1050,6 +1065,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/github/gitignore")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
@@ -1123,6 +1139,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/acch/test-non-default-branch")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest-mirror-develop.git")),
@@ -1199,6 +1216,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("https://github.com/acch/test-non-default-branch")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest-mirror-production.git")),
@@ -1276,6 +1294,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/tfadmin/tftest.git")),
@@ -1352,6 +1371,7 @@ resource "forgejo_repository" "test" {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archive_on_destroy"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_org/tftest.git")),
@@ -1502,6 +1522,7 @@ import {
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("archived"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("auto_init"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("autodetect_manual_merge"), knownvalue.Bool(false)),
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("default_delete_branch_after_merge"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("avatar_url"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_addr"), knownvalue.StringExact("")),
 					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("clone_url"), knownvalue.StringExact("http://localhost:3000/test_org/tftest.git")),
@@ -1621,6 +1642,60 @@ resource "forgejo_repository" "test" {
 				},
 			},
 			// Delete testing automatically occurs in TestCase
+		},
+	})
+}
+
+func TestAccRepositoryResource_FullNameKnownOnUpdate(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create testing
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name = "tftest"
+}`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("full_name"), knownvalue.StringExact("tfadmin/tftest")),
+				},
+			},
+			// Update testing (unrelated change): full_name must stay known in the
+			// plan, otherwise resources referencing it would be replaced.
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name                              = "tftest"
+	default_delete_branch_after_merge = true
+}`,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("forgejo_repository.test", plancheck.ResourceActionUpdate),
+						plancheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("full_name"), knownvalue.StringExact("tfadmin/tftest")),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("full_name"), knownvalue.StringExact("tfadmin/tftest")),
+				},
+			},
+			// Update testing (rename): full_name changes, so it is unknown in the plan
+			{
+				Config: providerConfig + `
+resource "forgejo_repository" "test" {
+	name                              = "tftest-renamed"
+	default_delete_branch_after_merge = true
+}`,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("forgejo_repository.test", plancheck.ResourceActionUpdate),
+						plancheck.ExpectUnknownValue("forgejo_repository.test", tfjsonpath.New("full_name")),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository.test", tfjsonpath.New("full_name"), knownvalue.StringExact("tfadmin/tftest-renamed")),
+				},
+			},
 		},
 	})
 }
