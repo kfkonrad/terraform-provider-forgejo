@@ -692,7 +692,9 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	})
 
 	// Use Forgejo client to create new team
+	accessMu.Lock()
 	team, res, err := r.client.CreateTeam(data.Organization.ValueString(), opts)
+	accessMu.Unlock()
 	if err != nil {
 		if res != nil {
 			tflog.Error(ctx, "Error", map[string]any{
@@ -838,7 +840,9 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	data.toEdit(&opts)
 
 	// Use Forgejo client to update existing team
+	accessMu.Lock()
 	res, err := r.client.EditTeam(data.ID.ValueInt64(), opts)
+	accessMu.Unlock()
 	if err != nil {
 		if res != nil {
 			tflog.Error(ctx, "Error", map[string]any{
@@ -921,7 +925,9 @@ func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	})
 
 	// Use Forgejo client to delete existing team
+	accessMu.Lock()
 	res, err := r.client.DeleteTeam(data.ID.ValueInt64())
+	accessMu.Unlock()
 	if err != nil {
 		var msg string
 		if res == nil {

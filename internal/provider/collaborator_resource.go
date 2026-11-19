@@ -264,12 +264,14 @@ func (r *collaboratorResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Use Forgejo client to add new collaborator
+	accessMu.Lock()
 	res, err = r.client.AddCollaborator(
 		repo.Owner.ValueString(),
 		repo.Name.ValueString(),
 		data.User.ValueString(),
 		opts,
 	)
+	accessMu.Unlock()
 	if err != nil {
 		var msg string
 		if res == nil {
@@ -479,12 +481,14 @@ func (r *collaboratorResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	// Use Forgejo client to update existing collaborator
+	accessMu.Lock()
 	res, err = r.client.AddCollaborator(
 		repo.Owner.ValueString(),
 		repo.Name.ValueString(),
 		data.User.ValueString(),
 		opts,
 	)
+	accessMu.Unlock()
 	if err != nil {
 		var msg string
 		if res == nil {
@@ -580,11 +584,13 @@ func (r *collaboratorResource) Delete(ctx context.Context, req resource.DeleteRe
 	})
 
 	// Use Forgejo client to delete existing collaborator
+	accessMu.Lock()
 	res, err = r.client.DeleteCollaborator(
 		repo.Owner.ValueString(),
 		repo.Name.ValueString(),
 		data.User.ValueString(),
 	)
+	accessMu.Unlock()
 	if err != nil {
 		var msg string
 		if res == nil {

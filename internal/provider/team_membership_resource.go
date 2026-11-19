@@ -108,7 +108,9 @@ func (r *teamMembershipResource) Create(ctx context.Context, req resource.Create
 	})
 
 	// Use Forgejo client to add user to team
+	accessMu.Lock()
 	res, err := r.client.AddTeamMember(teamID, username)
+	accessMu.Unlock()
 	if err != nil {
 		var msg string
 		if res == nil {
@@ -246,7 +248,9 @@ func (r *teamMembershipResource) Delete(ctx context.Context, req resource.Delete
 	})
 
 	// Use Forgejo client to remove user from team
+	accessMu.Lock()
 	res, err := r.client.RemoveTeamMember(teamID, username)
+	accessMu.Unlock()
 	if err != nil {
 		var msg string
 		if res == nil {
